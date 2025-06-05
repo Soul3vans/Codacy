@@ -1,5 +1,63 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}{{ post.titulo }} - Blog Escuela{% endblock %}
-{% block description %}{{ post.resumen }}{% endblock %}
+{% block title %}Gestionar Posts{% endblock %}
 
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-edit me-2"></i>Gestionar Posts</h2>
+        <a href="{% url 'crear_post' %}" class="btn btn-success">
+            <i class="fas fa-plus me-1"></i>Nuevo Post
+        </a>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            {% if posts %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for post in posts %}
+                            <tr>
+                                <td>{{ post.titulo }}</td>
+                                <td>
+                                    {% if post.publicado %}
+                                        <span class="badge bg-success">Publicado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Borrador</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ post.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <a href="{% url 'editar_post' post.id %}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'eliminar_post' post.id %}" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No tienes posts creados.</p>
+                    <a href="{% url 'crear_post' %}" class="btn btn-primary">Crear tu primer post</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

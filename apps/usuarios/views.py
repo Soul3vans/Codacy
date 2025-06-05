@@ -65,3 +65,4 @@ def cambiar_rol(request, user_id):
             messages.error(request, 'Rol inválido.')
     
     return redirect('panel_admin')
+

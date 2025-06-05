@@ -9,6 +9,9 @@ class Perfil(models.Model):
     ]
     
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    es_admin = models.BooleanField(default=False)
+    es_moderador = models.BooleanField(default=False)
+    puede_editar = models.BooleanField(default=False)
     rol = models.CharField(max_length=20, choices=ROLES, default='usuario')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     activo = models.BooleanField(default=True)
@@ -28,3 +31,4 @@ class Perfil(models.Model):
     
     def puede_editar(self):
         return self.rol in ['administrador', 'moderador']
+    

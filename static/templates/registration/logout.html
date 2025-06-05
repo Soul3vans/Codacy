@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cerrar Sesión{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-sign-out-alt fa-3x text-muted mb-3"></i>
+                    <h3>¿Cerrar Sesión?</h3>
+                    <p class="text-muted">¿Estás seguro de que quieres cerrar tu sesión?</p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex gap-3 justify-content-center">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-sign-out-alt me-1"></i>Sí, cerrar sesión
+                            </button>
+                            <a href="{% url 'home' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

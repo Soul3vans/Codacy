@@ -1,5 +1,77 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}{{ post.titulo }} - Blog Escuela{% endblock %}
-{% block description %}{{ post.resumen }}{% endblock %}
+{% block title %}Gestionar Archivos{% endblock %}
 
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-file-upload me-2"></i>Gestionar Archivos</h2>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#subirArchivoModal">
+            <i class="fas fa-upload me-1"></i>Subir Archivo
+        </button>
+    </div>
+    
+    <div class="row">
+        {% if archivos %}
+            {% for archivo in archivos %}
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        {% if archivo.es_imagen %}
+                            <img src="{{ archivo.archivo.url }}" class="img-fluid mb-2" style="max-height: 100px;">
+                        {% else %}
+                            <i class="fas fa-file fa-3x text-muted mb-2"></i>
+                        {% endif %}
+                        <h6 class="card-title">{{ archivo.nombre }}</h6>
+                        <small class="text-muted">{{ archivo.fecha_subida|date:"d/m/Y" }}</small>
+                        <div class="mt-2">
+                            <a href="{{ archivo.archivo.url }}" target="_blank" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <button class="btn btn-sm btn-danger" data-archivo-id="{{ archivo.id }}" onclick="eliminarArchivo(this.dataset.archivoId)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No hay archivos subidos.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para subir archivos -->
+<div class="modal fade" id="subirArchivoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Subir Archivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="archivo" class="form-label">Seleccionar archivo</label>
+                        <input type="file" class="form-control" id="archivo" name="archivo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción (opcional)</label>
+                        <input type="text" class="form-control" id="descripcion" name="descripcion">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Subir Archivo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
