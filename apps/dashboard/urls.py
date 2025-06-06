@@ -13,6 +13,6 @@ urlpatterns = [
     path('editar-post/<int:post_id>/', views.editar_post, name='editar_post'),
     path('posts/eliminar/<int:post_id>/', views.eliminar_post, name='eliminar_post'),
     path('archivos/', views.gestionar_archivos, name='gestionar_archivos'),
-    path('archivos/eliminar/<int:archivo_id>/', views.eliminar_archivo_view, name='eliminar_archivo'),
-
+    path('editar/<int:pk>/', views.editar_archivo, name='editar_archivo'),
+    path('eliminar/<int:pk>/', views.eliminar_archivo, name='eliminar_archivo'),
 ]

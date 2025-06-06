@@ -176,9 +176,9 @@ def gestionar_archivos(request):
     return render(request, 'blog/gestionar_archivos.html', context)
 
 @user_passes_test(puede_editar)
-def eliminar_archivo_view(request, archivo_id):
+def eliminar_archivo(request, pk):
     """Eliminar un archivo existente"""
-    archivo = get_object_or_404(Archivo, id=archivo_id)
+    archivo = get_object_or_404(Archivo, pk=pk)
     
     if request.method == 'POST':
         # Eliminar el archivo físico del sistema de archivos
@@ -196,3 +196,15 @@ def eliminar_archivo_view(request, archivo_id):
         return redirect('gestionar_archivos')
     
     return render(request, 'blog/confirmar_eliminar_archivo.html', {'archivo': archivo})
+
+@user_passes_test(puede_editar)
+def editar_archivo(request, pk):
+    archivo = get_object_or_404(Archivo, pk=pk)
+    if request.method == 'POST':
+        form = ArchivoForm(request.POST, request.FILES, instance=archivo)
+        if form.is_valid():
+            form.save()
+            return redirect('gestionar_archivos') # Redirect to your file management page
+    else:
+        form = ArchivoForm(instance=archivo)
+    return render(request, 'your_app_name/editar_archivo.html', {'form': form, 'archivo': archivo})
