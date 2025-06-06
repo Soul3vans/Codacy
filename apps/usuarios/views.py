@@ -1,15 +1,50 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth import logout as auth_logout
+from django.contrib.auth import logout as auth_logout, login, authenticate
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse
 from django.core.paginator import Paginator
-from django.contrib.auth.models import User
 from django.db.models import Q, Count
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.cache import never_cache
+from django import forms
 from .models import Post, Archivo, Perfil
 from .forms import PostForm, ArchivoForm, PerfilForm
 import json
+
+# Formulario personalizado de registro
+class RegistroForm(UserCreationForm):
+    email = forms.EmailField(required=True)
+    first_name = forms.CharField(max_length=30, required=True, label='Nombre')
+    last_name = forms.CharField(max_length=30, required=True, label='Apellidos')
+
+    class Meta:
+        model = User
+        fields = ("username", "first_name", "last_name", "email", "password1", "password2")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Personalizar los widgets y clases CSS
+        for field_name, field in self.fields.items():
+            field.widget.attrs['class'] = 'form-control'
+            
+        # Personalizar labels y help texts
+        self.fields['username'].help_text = 'Requerido. 150 caracteres o menos. Solo letras, dígitos y @/./+/-/_'
+        self.fields['password1'].help_text = 'Tu contraseña debe tener al menos 8 caracteres.'
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data["email"]
+        user.first_name = self.cleaned_data["first_name"]
+        user.last_name = self.cleaned_data["last_name"]
+        if commit:
+            user.save()
+            # Crear perfil automáticamente
+            Perfil.objects.get_or_create(user=user)
+        return user
 
 # Decoradores para verificar permisos
 def es_admin(user):
@@ -24,9 +59,71 @@ def es_moderador_o_admin(user):
     """Verifica si el usuario es moderador o admin"""
     return user.is_authenticated and hasattr(user, 'perfil') and (user.perfil.es_moderador or user.perfil.es_admin)
 
+# NUEVA VISTA DE REGISTRO
+@csrf_protect
+@never_cache
+def registro(request):
+    """Vista de registro con protección CSRF"""
+    if request.user.is_authenticated:
+        return redirect('perfil')
+    
+    if request.method == 'POST':
+        form = RegistroForm(request.POST)
+        if form.is_valid():
+            try:
+                user = form.save()
+                username = form.cleaned_data.get('username')
+                
+                # Autenticar y hacer login automáticamente
+                user = authenticate(username=username, password=form.cleaned_data.get('password1'))
+                if user is not None:
+                    login(request, user)
+                    messages.success(request, f'¡Bienvenido {user.first_name or username}! Tu cuenta ha sido creada exitosamente.')
+                    return redirect('perfil')
+                else:
+                    messages.error(request, 'Error en la autenticación. Intenta iniciar sesión manualmente.')
+                    return redirect('login')
+            except Exception as e:
+                messages.error(request, f'Error al crear la cuenta: {str(e)}')
+        else:
+            messages.error(request, 'Por favor corrige los errores en el formulario.')
+    else:
+        form = RegistroForm()
+    
+    return render(request, 'registration/registro.html', {'form': form})
+
+# VISTA DE LOGIN PERSONALIZADA (opcional - mejorada)
+@csrf_protect
+@never_cache
+def login_view(request):
+    """Vista de login personalizada con protección CSRF"""
+    if request.user.is_authenticated:
+        return redirect('perfil')
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        if username and password:
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                if user.is_active:
+                    login(request, user)
+                    messages.success(request, f'¡Bienvenido de nuevo, {user.first_name or user.username}!')
+                    next_url = request.GET.get('next', 'perfil')
+                    return redirect(next_url)
+                else:
+                    messages.error(request, 'Tu cuenta está desactivada. Contacta al administrador.')
+            else:
+                messages.error(request, 'Usuario o contraseña incorrectos.')
+        else:
+            messages.error(request, 'Por favor ingresa usuario y contraseña.')
+    
+    return render(request, 'registration/login.html')
+
 @login_required
-def perfil_view(request):
-    """Vista para mostrar el perfil del usuario"""
+def perfil(request):
+    """Vista para mostrar el perfil del usuario - nombre simplificado"""
     try:
         perfil = request.user.perfil
     except:
@@ -65,8 +162,8 @@ def editar_perfil_view(request):
 
 @login_required
 @user_passes_test(puede_editar)
-def gestionar_posts_view(request):
-    """Vista para gestionar posts del usuario"""
+def gestionar_posts(request):
+    """Vista para gestionar posts del usuario - nombre simplificado"""
     posts = Post.objects.filter(autor=request.user).order_by('-fecha_creacion')
     
     # Paginación
@@ -82,8 +179,8 @@ def gestionar_posts_view(request):
 
 @login_required
 @user_passes_test(puede_editar)
-def crear_post_view(request):
-    """Vista para crear un nuevo post"""
+def crear_post(request):
+    """Vista para crear un nuevo post - nombre simplificado"""
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
@@ -138,8 +235,8 @@ def eliminar_post_view(request, post_id):
 
 @login_required
 @user_passes_test(puede_editar)
-def gestionar_archivos_view(request):
-    """Vista para gestionar archivos del usuario"""
+def gestionar_archivos(request):
+    """Vista para gestionar archivos del usuario - nombre simplificado"""
     if request.method == 'POST':
         form = ArchivoForm(request.POST, request.FILES)
         if form.is_valid():
@@ -188,8 +285,8 @@ def eliminar_archivo_view(request, archivo_id):
 
 @login_required
 @user_passes_test(es_admin)
-def panel_admin_view(request):
-    """Vista del panel de administración"""
+def panel_admin(request):
+    """Vista del panel de administración - nombre simplificado"""
     # Estadísticas generales
     total_usuarios = User.objects.count()
     usuarios_activos = User.objects.filter(is_active=True).count()
@@ -239,7 +336,7 @@ def panel_admin_view(request):
         'posts_recientes': posts_recientes,
         'buscar': buscar,
     }
-    return render(request, 'panel_admin.html', context)
+    return render(request, 'usuarios/admin_panel.html', context)
 
 @login_required
 @user_passes_test(es_admin)
@@ -302,19 +399,21 @@ def cambiar_estado_usuario_view(request, user_id):
     
     return JsonResponse({'success': False, 'message': 'Método no permitido.'})
 
+@csrf_protect
 def logout_view(request):
-    """Vista para cerrar sesión"""
+    """Vista para cerrar sesión con protección CSRF mejorada"""
     if request.method == 'POST':
         username = request.user.username if request.user.is_authenticated else 'Usuario'
         auth_logout(request)
         messages.success(request, f'Sesión cerrada correctamente. ¡Hasta pronto, {username}!')
         return redirect('home')
     
-    return render(request, 'logout.html')
+    # Si no es POST, redirigir al login
+    return redirect('login')
 
-# Vista adicional para el home (en caso de que no exista)
-def home_view(request):
-    """Vista principal del sitio"""
+# Vista adicional para el home
+def home(request):
+    """Vista principal del sitio - nombre simplificado"""
     posts_recientes = Post.objects.filter(publicado=True).order_by('-fecha_creacion')[:6]
     total_posts = Post.objects.filter(publicado=True).count()
     total_usuarios = User.objects.filter(is_active=True).count()
@@ -324,4 +423,4 @@ def home_view(request):
         'total_posts': total_posts,
         'total_usuarios': total_usuarios,
     }
-    return render(request, 'home.html', context)
+    return render(request, 'dashboard.html', context)

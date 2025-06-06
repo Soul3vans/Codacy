@@ -142,6 +142,18 @@ def editar_post(request, post_id):
     return render(request, 'blog/editar_post.html', {'form': form, 'post': post})
 
 @user_passes_test(puede_editar)
+def eliminar_post(request, post_id):
+    """Eliminar un post existente"""
+    post = get_object_or_404(Post, id=post_id)
+    
+    if request.method == 'POST':
+        post.delete()
+        messages.success(request, 'Post eliminado correctamente.')
+        return redirect('gestionar_posts')
+    
+    return render(request, 'blog/confirmar_eliminar_post.html', {'post': post})
+
+@user_passes_test(puede_editar)
 def gestionar_archivos(request):
     """Gestión de archivos subidos"""
     archivos = Archivo.objects.all().order_by('-fecha_subida')
@@ -162,3 +174,25 @@ def gestionar_archivos(request):
         'form': form,
     }
     return render(request, 'blog/gestionar_archivos.html', context)
+
+@user_passes_test(puede_editar)
+def eliminar_archivo_view(request, archivo_id):
+    """Eliminar un archivo existente"""
+    archivo = get_object_or_404(Archivo, id=archivo_id)
+    
+    if request.method == 'POST':
+        # Eliminar el archivo físico del sistema de archivos
+        if archivo.archivo and archivo.archivo.name:
+            try:
+                archivo.archivo.delete(save=False)
+            except Exception as e:
+                messages.error(request, f'Error al eliminar el archivo físico: {str(e)}')
+                return redirect('gestionar_archivos')
+        
+        # Eliminar el registro de la base de datos
+        archivo_nombre = archivo.nombre or archivo.archivo.name
+        archivo.delete()
+        messages.success(request, f'Archivo "{archivo_nombre}" eliminado correctamente.')
+        return redirect('gestionar_archivos')
+    
+    return render(request, 'blog/confirmar_eliminar_archivo.html', {'archivo': archivo})

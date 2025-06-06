@@ -125,7 +125,7 @@
                     {% if user.is_authenticated %}
                         <!-- Menú para usuarios autenticados -->
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-user me-1"></i>{{ user.username }}
                                 {% if user.perfil.es_admin %}
                                     <span class="admin-badge ms-1">Admin</span>
@@ -159,9 +159,16 @@
                                 {% endif %}
                                 
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{% url 'logout' %}">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
-                                </a></li>
+                                <li>
+                                    <form method="post" action="{% url 'logout' %}" class="logout-form" id="logout-form">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item logout-btn" 
+                                                onclick="return confirmLogout(event)"
+                                                style="border: none; background: none; width: 100%; text-align: left; cursor: pointer;">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                                        </button>
+                                    </form>
+                                </li>
                             </ul>
                         </li>
                     {% else %}

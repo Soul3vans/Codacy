@@ -1,5 +1,94 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %} {# Asume que tienes un base.html principal #}
+{% load static %}
 
-{% block title %}{{ post.titulo }} - Blog Escuela{% endblock %}
-{% block description %}{{ post.resumen }}{% endblock %}
+{% block title %}Gestionar Posts{% endblock %}
 
+{% block content %}
+    <div class="container mt-4">
+        <h1 class="mb-4">Gestión de Posts</h1>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <a href="{% url 'crear_post' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Crear Nuevo Post
+            </a>
+
+            <div class="dropdown">
+                <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownEstado" data-bs-toggle="dropdown" aria-expanded="false">
+                    Filtrar por Estado: {{ estado_seleccionado|default:"Todos"|capfirst }}
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="dropdownEstado">
+                    <li><a class="dropdown-item {% if not estado_seleccionado %}active{% endif %}" href="{% url 'gestionar_posts' %}">Todos</a></li>
+                    <li><a class="dropdown-item {% if estado_seleccionado == 'publicado' %}active{% endif %}" href="{% url 'gestionar_posts' %}?estado=publicado">Publicado</a></li>
+                    <li><a class="dropdown-item {% if estado_seleccionado == 'borrador' %}active{% endif %}" href="{% url 'gestionar_posts' %}?estado=borrador">Borrador</a></li>
+                    <li><a class="dropdown-item {% if estado_seleccionado == 'archivado' %}active{% endif %}" href="{% url 'gestionar_posts' %}?estado=archivado">Archivado</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Autor</th>
+                        <th>Categoría</th>
+                        <th>Estado</th>
+                        <th>Vistas</th>
+                        <th>Fecha de Publicación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for post in posts %}
+                        <tr>
+                            <td>{{ post.titulo }}</td>
+                            <td>{{ post.autor.username }}</td>
+                            <td>{{ post.categoria.nombre|default:"N/A" }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if post.estado == 'publicado' %}bg-success
+                                    {% elif post.estado == 'borrador' %}bg-warning text-dark
+                                    {% else %}bg-secondary
+                                    {% endif %}">
+                                    {{ post.get_estado_display }}
+                                </span>
+                            </td>
+                            <td>{{ post.vistas }}</td>
+                            <td>
+                                {% if post.fecha_publicacion %}
+                                    {{ post.fecha_publicacion|date:"d M Y H:i" }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'editar_post' post.id %}" class="btn btn-sm btn-info me-2" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{% url 'eliminar_post' post.id %}" method="post" class="d-inline" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este post?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No hay posts disponibles para gestionar.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
