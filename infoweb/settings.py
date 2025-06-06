@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'crispy_forms',
-    'crispy_bootstrap',
+    'crispy_bootstrap4',
     'apps.dashboard',
     'apps.usuarios',
 ]
@@ -131,6 +131,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configuración de crispy-forms
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
 CRISPY_TEMPLATE_PACK = 'bootstrap4'  # O 'bootstrap5' si usas Bootstrap 5
 
 # Configuraciones de seguridad

@@ -1,5 +1,9 @@
-"""pip install -r requirements/base.txt"""
-
+#para instalar los requirements
+#pip install -r requirements/base.txt
+#
+#Para actulizar los requirements
+#pip-compile-multi
+#
 Django==5.2.1
 django-appconf==1.1.0
 django-filter==25.1

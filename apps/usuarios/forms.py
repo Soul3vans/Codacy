@@ -1,45 +1,173 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import Perfil
+from .models import Post, Archivo, Perfil, Categoria, Comentario
 
-class RegistroForm(UserCreationForm):
-    email = forms.EmailField(required=True)
-    first_name = forms.CharField(max_length=30, required=True, label='Nombre')
-    last_name = forms.CharField(max_length=30, required=True, label='Apellidos')
+class PerfilForm(forms.ModelForm):
+    """Formulario para editar el perfil del usuario"""
     
     class Meta:
-        model = User
-        fields = ('username', 'first_name', 'last_name', 'email', 'password1', 'password2')
+        model = Perfil
+        fields = ['avatar', 'bio', 'fecha_nacimiento', 'telefono', 'ciudad', 
+                 'recibir_notificaciones', 'perfil_publico']
+        widgets = {
+            'bio': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Cuéntanos algo sobre ti...'
+            }),
+            'fecha_nacimiento': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'telefono': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '+1 234 567 8900'
+            }),
+            'ciudad': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Tu ciudad'
+            }),
+            'avatar': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'recibir_notificaciones': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'perfil_publico': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+class PostForm(forms.ModelForm):
+    """Formulario para crear y editar posts"""
+    
+    class Meta:
+        model = Post
+        fields = ['titulo', 'contenido', 'resumen', 'imagen_destacada', 
+                 'categorias', 'publicado', 'destacado', 'meta_descripcion', 'meta_keywords']
+        widgets = {
+            'titulo': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Título del post'
+            }),
+            'contenido': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 15,
+                'placeholder': 'Escribe tu contenido aquí...'
+            }),
+            'resumen': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Resumen breve del post (opcional)',
+                'maxlength': 300
+            }),
+            'imagen_destacada': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'categorias': forms.CheckboxSelectMultiple(attrs={
+                'class': 'form-check-input'
+            }),
+            'publicado': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'destacado': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'meta_descripcion': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Descripción para SEO (opcional)',
+                'maxlength': 160
+            }),
+            'meta_keywords': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Palabras clave separadas por comas'
+            }),
+        }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Personalizar labels y ayuda
-        self.fields['username'].label = 'Nombre de usuario'
-        self.fields['username'].help_text = 'Máximo 150 caracteres. Solo letras, números y @/./+/-/_'
-        self.fields['password1'].label = 'Contraseña'
-        self.fields['password2'].label = 'Confirmar contraseña'
-        
-        # Agregar clases CSS
-        for field_name, field in self.fields.items():
-            field.widget.attrs['class'] = 'form-control'
-    
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.email = self.cleaned_data['email']
-        user.first_name = self.cleaned_data['first_name']
-        user.last_name = self.cleaned_data['last_name']
-        if commit:
-            user.save()
-        return user
+        self.fields['categorias'].queryset = Categoria.objects.filter(activa=True)
 
-class PerfilForm(forms.ModelForm):
+class ArchivoForm(forms.ModelForm):
+    """Formulario para subir archivos"""
+    
     class Meta:
-        model = Perfil
-        fields = ['activo']
+        model = Archivo
+        fields = ['archivo', 'descripcion', 'publico']
         widgets = {
-            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'archivo': forms.FileInput(attrs={
+                'class': 'form-control',
+                'required': True
+            }),
+            'descripcion': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Descripción del archivo (opcional)'
+            }),
+            'publico': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
         }
-        labels = {
-            'activo': 'Cuenta activa',
+
+class CategoriaForm(forms.ModelForm):
+    """Formulario para gestionar categorías"""
+    
+    class Meta:
+        model = Categoria
+        fields = ['nombre', 'descripcion', 'color', 'icono', 'activa']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Nombre de la categoría'
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Descripción de la categoría'
+            }),
+            'color': forms.TextInput(attrs={
+                'class': 'form-control',
+                'type': 'color'
+            }),
+            'icono': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'fas fa-tag (clase de FontAwesome)'
+            }),
+            'activa': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
         }
+
+class ComentarioForm(forms.ModelForm):
+    """Formulario para comentarios"""
+    
+    class Meta:
+        model = Comentario
+        fields = ['contenido']
+        widgets = {
+            'contenido': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Escribe tu comentario...'
+            }),
+        }
+
+class BuscarForm(forms.Form):
+    """Formulario para búsquedas"""
+    q = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Buscar posts, usuarios...',
+            'autocomplete': 'off'
+        })
+    )
+    categoria = forms.ModelChoiceField(
+        queryset=Categoria.objects.filter(activa=True),
+        required=False,
+        empty_label="Todas las categorías",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )

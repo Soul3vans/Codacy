@@ -1,7 +1,9 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
+
+User = get_user_model()
 
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
@@ -55,7 +57,7 @@ class Post(models.Model):
 
 class Comentario(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comentarios')
-    autor = models.ForeignKey(User, on_delete=models.CASCADE)
+    autor = models.ForeignKey( User, on_delete=models.CASCADE, related_name='comentarios_dashboard')
     contenido = models.TextField(max_length=500)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     activo = models.BooleanField(default=True)
@@ -80,7 +82,7 @@ class Archivo(models.Model):
     archivo = models.FileField(upload_to='archivos/')
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     descripcion = models.TextField(blank=True)
-    subido_por = models.ForeignKey(User, on_delete=models.CASCADE)
+    subido_por = models.ForeignKey(User, on_delete=models.CASCADE, related_name='archivos_dashboard')
     fecha_subida = models.DateTimeField(auto_now_add=True)
     publico = models.BooleanField(default=False)
     
