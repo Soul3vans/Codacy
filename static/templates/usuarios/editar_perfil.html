@@ -1,0 +1,24 @@
+{% extends 'base.html' %} {# Asume que tienes un archivo base.html con la estructura principal de tu sitio #}
+
+{% block title %}Editar Perfil{% endblock %} {# Define el título de la página #}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="mb-0">Editar tu Perfil</h1>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %} {# Es crucial para la seguridad en Django #}
+                        {{ form.as_p }} {# Esto renderizará los campos de tu formulario como párrafos #}
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
