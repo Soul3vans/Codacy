@@ -12,6 +12,7 @@ class Perfil(models.Model):
     fecha_nacimiento = models.DateField(blank=True, null=True)
     telefono = models.CharField(max_length=15, blank=True)
     ciudad = models.CharField(max_length=100, blank=True)
+    last_activity = models.DateTimeField(null=True, blank=True)
     
     # Permisos y roles
     es_admin = models.BooleanField(default=False)

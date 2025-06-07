@@ -2,6 +2,10 @@
 
 {% block title %}Panel de Administración - Blog Escuela{% endblock %}
 
+{% block extra_css %}
+
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -16,81 +20,94 @@
                     <h5>Gestión de Usuarios y Roles</h5>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Usuario</th>
-                                    <th>Nombre Completo</th>
-                                    <th>Email</th>
-                                    <th>Rol Actual</th>
-                                    <th>Fecha Registro</th>
-                                    <th>Estado</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for usuario in usuarios %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ usuario.username }}</strong>
-                                        {% if usuario.perfil.es_admin %}
-                                            <span class="admin-badge ms-1">Admin</span>
-                                        {% elif usuario.perfil.es_moderador %}
-                                            <span class="moderador-badge ms-1">Mod</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ usuario.get_full_name|default:"-" }}</td>
-                                    <td>{{ usuario.email }}</td>
-                                    <td>{{ usuario.perfil.get_rol_display }}</td>
-                                    <td>{{ usuario.date_joined|date:"d M Y" }}</td>
-                                    <td>
-                                        {% if usuario.perfil.activo %}
-                                            <span class="badge bg-success">Activo</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Inactivo</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if usuario != user %}
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
-                                                Cambiar Rol
-                                            </button>
-                                            <ul class="dropdown-menu">
-                                                <li>
-                                                    <form method="post" action="{% url 'cambiar_rol' usuario.id %}" class="d-inline">
-                                                        {% csrf_token %}
-                                                        <input type="hidden" name="rol" value="usuario">
-                                                        <button type="submit" class="dropdown-item">Usuario</button>
-                                                    </form>
-                                                </li>
-                                                <li>
-                                                    <form method="post" action="{% url 'cambiar_rol' usuario.id %}" class="d-inline">
-                                                        {% csrf_token %}
-                                                        <input type="hidden" name="rol" value="moderador">
-                                                        <button type="submit" class="dropdown-item">Moderador</button>
-                                                    </form>
-                                                </li>
-                                                <li>
-                                                    <form method="post" action="{% url 'cambiar_rol' usuario.id %}" class="d-inline">
-                                                        {% csrf_token %}
-                                                        <input type="hidden" name="rol" value="administrador">
-                                                        <button type="submit" class="dropdown-item">Administrador</button>
-                                                    </form>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                        {% else %}
-                                        <small class="text-muted">Tu cuenta</small>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+    <div class="table-responsive">
+        <table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Usuario</th>
+            <th>Nombre Completo</th>
+            <th>Email</th>
+            <th>Fecha Registro</th>
+            <th>Estado de Cuenta</th> {# Indica si la cuenta está habilitada/deshabilitada #}
+            <th>Última Actividad</th> {# Opcional: mostrar la última actividad #}
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for usuario in usuarios %}
+        <tr>
+            <td>
+                <strong>{{ usuario.username }}</strong>
+                {% if usuario.perfil.es_admin %}
+                    <span class="admin-badge ms-1">Admin</span>
+                {% elif usuario.perfil.es_moderador %}
+                    <span class="moderador-badge ms-1">Mod</span>
+                {% endif %}
+            </td>
+            <td>{{ usuario.get_full_name|default:"-" }}</td>
+            <td>{{ usuario.email }}</td>
+            <td>{{ usuario.date_joined|date:"d M Y" }}</td>
+            <td>
+                {% if usuario.is_active %}
+                    <span class="badge bg-success">Habilitada</span>
+                {% else %}
+                    <span class="badge bg-danger">Deshabilitada</span>
+                {% endif %}
+            </td>
+            <td>
+                {# Opcional: Mostrar la última actividad si la tienes en el Perfil #}
+                {% if usuario.perfil.last_activity %}
+                    {{ usuario.perfil.last_activity|date:"d M Y H:i" }}
+                {% else %}
+                    Nunca
+                {% endif %}
+            </td>
+            <td>
+                {% if usuario != user %}
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                            Cambiar Rol
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form method="post" action="{% url 'cambiar_rol_usuario' usuario.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="rol" value="usuario">
+                                    <button type="submit" class="dropdown-item">Usuario</button>
+                                </form>
+                            </li>
+                            <li>
+                                <form method="post" action="{% url 'cambiar_rol_usuario' usuario.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="rol" value="moderador">
+                                    <button type="submit" class="dropdown-item">Moderador</button>
+                                </form>
+                            </li>
+                            <li>
+                                <form method="post" action="{% url 'cambiar_rol_usuario' usuario.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="rol" value="administrador">
+                                    <button type="submit" class="dropdown-item">Administrador</button>
+                                </form>
+                            </li>
+                        </ul>
                     </div>
-                </div>
+                    <form method="post" action="{% url 'eliminar_usuario' usuario.id %}" class="d-inline" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este usuario?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
+                {% else %}
+                    <small class="text-muted">Tu cuenta</small>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+    </div>
+</div>
             </div>
         </div>
     </div>
@@ -186,43 +203,8 @@
     </div>
 </div>
 
-<style>
-    .admin-badge {
-        background-color: #dc3545;
-        color: white;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.75em;
-    }
-    
-    .moderador-badge {
-        background-color: #fd7e14;
-        color: white;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.75em;
-    }
-    
-    .hero-section {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 4rem 0;
-        margin-bottom: 2rem;
-    }
-    
-    .post-content {
-        line-height: 1.8;
-        font-size: 1.1em;
-    }
-    
-    .card {
-        border: none;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
-    }
-    
-    .card:hover {
-        transform: translateY(-2px);
-    }
-</style>
+{% endblock %}
+
+{% block extra_js %}
+
 {% endblock %}

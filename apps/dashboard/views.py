@@ -8,8 +8,24 @@ from .models import Post, Categoria, Comentario, Archivo
 from .forms import PostForm, ComentarioForm, ArchivoForm
 
 def puede_editar(user):
-    """Permite acceso solo a usuarios staff o superusuarios"""
-    return user.is_authenticated and (user.is_staff or user.is_superuser)
+    """Permite acceso a usuarios staff, superusuarios, o moderadores/admins de tu modelo Perfil."""
+    if not user.is_authenticated:
+        return False
+    
+    # Comprobación de roles de Django (is_staff o is_superuser)
+    if user.is_staff or user.is_superuser:
+        return True
+    
+    # Comprobación de roles personalizados a través del modelo Perfil
+    # Asegúrate de que el modelo Perfil esté accesible.
+    # Si Perfil está en `usuarios.models`, necesitarías importarlo: `from usuarios.models import Perfil`
+    if hasattr(user, 'perfil'):
+        # Asume que `user.perfil.puede_editar` ya retorna `self.es_admin or self.es_moderador`
+        # Si no lo tienes en tu modelo Perfil, puedes hacer la comprobación directa aquí:
+        return user.perfil.es_admin or user.perfil.es_moderador
+    
+    return False # Si no cumple ninguna de las condiciones anteriores
+
 
 def inicio(request):
     """Página principal del blog"""

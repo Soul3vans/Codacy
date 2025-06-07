@@ -171,3 +171,51 @@ class BuscarForm(forms.Form):
             'class': 'form-select'
         })
     )
+
+class ActualizarPerfilForm(forms.ModelForm):
+    """
+    Formulario para actualizar perfil de usuario
+    """
+    first_name = forms.CharField(
+        max_length=30,
+        required=True,
+        label='Nombre',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa tu nombre'
+        })
+    )
+    
+    last_name = forms.CharField(
+        max_length=30,
+        required=True,
+        label='Apellidos',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa tus apellidos'
+        })
+    )
+    
+    email = forms.EmailField(
+        required=True,
+        label='Correo electrónico',
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'tu@email.com'
+        })
+    )
+    
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and self.user:
+            if User.objects.filter(email=email).exclude(id=self.user.id).exists():
+                raise ValidationError('Este correo electrónico ya está en uso.')
+        return email
