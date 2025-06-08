@@ -5,11 +5,97 @@
 {% block description %}Gestiona tu información personal y configuración de cuenta{% endblock %}
 
 {% block extra_css %}
-
+<style>
+    /* Add some basic styling for responsiveness and better aesthetics */
+    .profile-header {
+        background-color: #f8f9fa;
+        padding: 40px 0;
+        margin-bottom: 30px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .profile-avatar {
+        font-size: 80px;
+        color: #007bff;
+    }
+    .admin-badge, .moderador-badge {
+        font-size: 0.8em;
+        padding: 0.3em 0.6em;
+        border-radius: 0.25rem;
+        color: #fff;
+    }
+    .admin-badge {
+        background-color: #dc3545;
+    }
+    .moderador-badge {
+        background-color: #007bff;
+    }
+    .profile-card {
+        border: none;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    .profile-card .card-header {
+        background-color: #fff;
+        border-bottom: 1px solid rgba(0,0,0,.125);
+        color: #007bff;
+    }
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px dashed #e9ecef;
+    }
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    .info-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    .info-value {
+        color: #212529;
+    }
+    .account-status {
+        font-weight: 600;
+    }
+    .status-active {
+        color: #28a745;
+    }
+    .stats-card {
+        background-color: #e2f0ff;
+        color: #007bff;
+        padding: 20px;
+        border-radius: 0.5rem;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    .stats-number {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .btn-update, .btn-change-password {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: #fff;
+    }
+    .btn-update:hover, .btn-change-password:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+    }
+    .modal-header {
+        background-color: #007bff;
+        color: white;
+        border-bottom: none;
+    }
+    .modal-header .btn-close {
+        filter: invert(1) brightness(2); /* Makes the close button white */
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<!-- Header del perfil -->
+
 <section class="profile-header">
     <div class="container">
         <div class="row align-items-center">
@@ -21,9 +107,9 @@
             <div class="col-md-8">
                 <h1 class="mb-3">
                     {{ user.get_full_name|default:user.username }}
-                    {% if user.perfil.es_admin %}
+                    {% if user_profile.es_admin %} {# Use user_profile here #}
                         <span class="admin-badge ms-2">Administrador</span>
-                    {% elif user.perfil.es_moderador %}
+                    {% elif user_profile.es_moderador %} {# Use user_profile here #}
                         <span class="moderador-badge ms-2">Moderador</span>
                     {% endif %}
                 </h1>
@@ -38,8 +124,16 @@
 </section>
 
 <div class="container">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
     <div class="row">
-        <!-- Información del perfil -->
         <div class="col-lg-8">
             <div class="card profile-card mb-4">
                 <div class="card-header">
@@ -49,86 +143,63 @@
                     </h4>
                 </div>
                 <div class="card-body">
-                    <!-- Modo visualización -->
-                    <div id="view-mode">
-                        <div class="info-item">
-                            <div class="info-label">Nombre de usuario</div>
-                            <div class="info-value">{{ user.username }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Nombre completo</div>
-                            <div class="info-value">{{ user.get_full_name|default:"No especificado" }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Correo electrónico</div>
-                            <div class="info-value">{{ user.email|default:"No especificado" }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Estado de la cuenta</div>
-                            <div class="info-value">
-                                <span class="account-status status-active">
-                                    <i class="fas fa-check-circle me-1"></i>Activa
-                                </span>
-                            </div>
+                    <div class="info-item">
+                        <div class="info-label">Nombre de usuario</div>
+                        <div class="info-value">{{ user.username }}
+                            {% if user.perfil.es_admin %}
+                            <span class="admin-badge ms-1">Admin</span>
+                            {% elif user.perfil.es_moderador %}
+                            <span class="moderador-badge ms-1">Mod</span>
+                            {% endif %}
                         </div>
                         
-                        <div class="text-center mt-4">
-                            <button type="button" class="btn btn-update me-3" onclick="toggleEditMode()">
-                                <i class="fas fa-edit me-2"></i>Editar Información
-                            </button>
-                            <button type="button" class="btn btn-change-password" data-bs-toggle="modal" data-bs-target="#passwordModal">
-                                <i class="fas fa-key me-2"></i>Cambiar Contraseña
-                            </button>
-                        </div>
                     </div>
-                    
-                    <!-- Modo edición -->
-                    <div id="edit-mode" style="display: none;">
-                        <form method="post" action="{% url 'actualizar_perfil' %}">
-                            {% csrf_token %}
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="first_name" class="form-label">Nombre</label>
-                                    <input type="text" class="form-control" id="first_name" name="first_name" 
-                                           value="{{ user.first_name }}" required maxlength="30">
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="last_name" class="form-label">Apellidos</label>
-                                    <input type="text" class="form-control" id="last_name" name="last_name" 
-                                           value="{{ user.last_name }}" required maxlength="30">
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Correo electrónico</label>
-                                <input type="email" class="form-control" id="email" name="email" 
-                                       value="{{ user.email }}" required>
-                            </div>
-                            
-                            <div class="text-center">
-                                <button type="submit" class="btn btn-update me-3">
-                                    <i class="fas fa-save me-2"></i>Guardar Cambios
-                                </button>
-                                <button type="button" class="btn btn-secondary" onclick="toggleEditMode()">
-                                    <i class="fas fa-times me-2"></i>Cancelar
-                                </button>
-                            </div>
-                        </form>
+                    <div class="info-item">
+                        <div class="info-label">Nombre completo</div>
+                        <div class="info-value">{{ user.get_full_name|default:"No especificado" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Correo electrónico</div>
+                        <div class="info-value">{{ user.email|default:"No especificado" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Teléfono</div>
+                        <div class="info-value">{{ user.perfil.telefono|default:"No especificado" }}</div> {# Display phone #}
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Sede Universitaria</div>
+                        <div class="info-value">{{ user.perfil.get_cede_display|default:"No especificado" }}</div> {# Display cede #}
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Cargo</div>
+                        <div class="info-value">{{ user.perfil.cargo|default:"No especificado" }}</div> {# Display cargo #}
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Notificaciones por email</div>
+                        <div class="info-value">
+                            {% if user_profile.recibir_notificaciones %}Sí{% else %}No{% endif %} {# Display notifications preference #}
+                        </div>
+                    </div>                    
+                    <div class="text-center mt-4">
+                        <a href="{% url 'actualizar_perfil' %}" class="btn btn-update me-3">
+                            <i class="fas fa-edit me-2"></i>Editar Información
+                        </a>
+                        <button type="button" class="btn btn-change-password" data-bs-toggle="modal" data-bs-target="#passwordModal">
+                            <i class="fas fa-key me-2"></i>Cambiar Contraseña
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Panel lateral -->
         <div class="col-lg-4">
-            <!-- Estadísticas -->
-            {% if user.perfil.puede_editar %}
+            {% if user_profile.puede_editar %} {# Use user_profile here #}
             <div class="stats-card">
                 <div class="stats-number">{{ posts_count|default:0 }}</div>
                 <div>Posts Publicados</div>
             </div>
             {% endif %}
             
-            <!-- Información adicional -->
             <div class="card profile-card">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -143,10 +214,10 @@
                     <p><strong>Fecha de registro:</strong><br>
                     {{ user.date_joined|date:"d/m/Y H:i" }}</p>
                     
-                    {% if user.perfil.es_admin %}
+                    {% if user_profile.es_admin %} {# Use user_profile here #}
                         <p><strong>Permisos:</strong><br>
                         <span class="text-danger">Administrador</span></p>
-                    {% elif user.perfil.es_moderador %}
+                    {% elif user_profile.es_moderador %} {# Use user_profile here #}
                         <p><strong>Permisos:</strong><br>
                         <span class="text-primary">Moderador</span></p>
                     {% else %}
@@ -159,7 +230,6 @@
     </div>
 </div>
 
-<!-- Modal para cambiar contraseña -->
 <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -205,22 +275,7 @@
 
 {% block extra_js %}
 <script>
-function toggleEditMode() {
-    const viewMode = document.getElementById('view-mode');
-    const editMode = document.getElementById('edit-mode');
-    
-    if (viewMode.style.display === 'none') {
-        // Cambiar a modo vista
-        viewMode.style.display = 'block';
-        editMode.style.display = 'none';
-    } else {
-        // Cambiar a modo edición
-        viewMode.style.display = 'none';
-        editMode.style.display = 'block';
-    }
-}
-
-// Validación del formulario de cambio de contraseña
+// Validation for password change form (keep as is)
 document.querySelector('#passwordModal form').addEventListener('submit', function(e) {
     const newPassword1 = document.getElementById('new_password1').value;
     const newPassword2 = document.getElementById('new_password2').value;

@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import logout as auth_logout, login, authenticate, update_session_auth_hash
-from django.contrib.auth.forms import UserCreationForm, PasswordChangeForm
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -15,8 +15,9 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.cache import never_cache
 from django import forms
+from datetime import timedelta
 from .models import Post, Archivo, Perfil
-from .forms import PostForm, ArchivoForm, PerfilForm, ActualizarPerfilForm
+from .forms import PostForm, ArchivoForm, PerfilForm, RegistroForm, ActualizarPerfilForm
 import json
 import logging
 
@@ -25,106 +26,80 @@ logger = logging.getLogger(__name__)
 def home(request):
     return render(request, 'dashboard/index.html')
 
-# VISTA DE PERFIL CORREGIDA - ELIMINAR DUPLICADOS
+# VISTA DE PERFIL CORREGIDA
 @login_required
 def perfil(request):
     """Vista para mostrar el perfil del usuario actual"""
     try:
         # Asegurarse de que existe el perfil
-        if not hasattr(request.user, 'perfil'):
-            Perfil.objects.create(user=request.user)
+        perfil, created = Perfil.objects.get_or_create(user=request.user)
         
         # Obtener estadísticas del usuario
         posts_count = 0
         posts_publicados = 0
         
-        if hasattr(request.user, 'post_set'):
+        # Verificar si el modelo Post existe antes de hacer consultas
+        try:
             posts_count = request.user.post_set.count()
             posts_publicados = request.user.post_set.filter(publicado=True).count()
+        except AttributeError:
+            # Si no existe la relación post_set, mantener en 0
+            pass
         
         context = {
             'user': request.user,
             'posts_count': posts_count,
             'posts_publicados': posts_publicados,
-            'perfil': request.user.perfil,
+            'perfil': perfil,
         }
-        
         return render(request, 'usuarios/perfil.html', context)
         
     except Exception as e:
         logger.error(f"Error al cargar perfil de usuario {request.user.username}: {e}")
         messages.error(request, 'Error al cargar el perfil. Por favor, intenta nuevamente.')
-        return redirect('home')  # Cambiar 'inicio' por 'home' si es necesario
+        return redirect('home')
+
+    """
+    Vista para mostrar el perfil del usuario.
+    """
+    user_profile = request.user.perfil # Accede al objeto perfil
+    posts_count = Post.objects.filter(autor=request.user).count() if user_profile.puede_editar else 0 
+
+    context = {
+        'user_profile': user_profile, # Envia el objeto Perfil al template
+        'posts_count': posts_count,
+    }
+    return render(request, 'usuarios/perfil.html', context)
 
 @login_required
 def actualizar_perfil(request):
     """Vista para actualizar la información del perfil del usuario"""
     if request.method == 'POST':
-        try:
-            with transaction.atomic():
-                user = request.user
-                
-                # Obtener datos del formulario
-                first_name = request.POST.get('first_name', '').strip()
-                last_name = request.POST.get('last_name', '').strip()
-                email = request.POST.get('email', '').strip()
-                
-                # Validaciones básicas
-                if not first_name:
-                    messages.error(request, 'El nombre es obligatorio.')
-                    return redirect('perfil')
-                
-                if not last_name:
-                    messages.error(request, 'Los apellidos son obligatorios.')
-                    return redirect('perfil')
-                
-                if not email:
-                    messages.error(request, 'El correo electrónico es obligatorio.')
-                    return redirect('perfil')
-                
-                # Validar formato de email
-                from django.core.validators import validate_email
-                try:
-                    validate_email(email)
-                except ValidationError:
-                    messages.error(request, 'Por favor ingresa un correo electrónico válido.')
-                    return redirect('perfil')
-                
-                # Validar que el email no esté en uso por otro usuario
-                if User.objects.filter(email=email).exclude(id=user.id).exists():
-                    messages.error(request, 'Este correo electrónico ya está en uso por otro usuario.')
-                    return redirect('perfil')
-                
-                # Validar longitud de campos
-                if len(first_name) > 30:
-                    messages.error(request, 'El nombre no puede tener más de 30 caracteres.')
-                    return redirect('perfil')
-                
-                if len(last_name) > 30:
-                    messages.error(request, 'Los apellidos no pueden tener más de 30 caracteres.')
-                    return redirect('perfil')
-                
-                # Actualizar información del usuario
-                user.first_name = first_name
-                user.last_name = last_name
-                user.email = email
-                user.save()
-                
-                # Asegurarse de que existe el perfil
-                if not hasattr(user, 'perfil'):
-                    Perfil.objects.create(user=user)
-                
-                logger.info(f"Perfil actualizado para usuario {user.username}")
-                messages.success(request, 'Tu perfil ha sido actualizado correctamente.')
-                
-        except ValidationError as e:
-            logger.error(f"Error de validación al actualizar perfil: {e}")
-            messages.error(request, f'Error de validación: {e}')
-        except Exception as e:
-            logger.error(f"Error al actualizar perfil de {request.user.username}: {e}")
-            messages.error(request, 'Error al actualizar el perfil. Por favor, intenta nuevamente.')
-    
-    return redirect('perfil')
+        # Pass instance of the user and user's profile to the forms
+        user_form = ActualizarPerfilForm(request.POST, user=request.user, instance=request.user)
+        
+        # Create a form for the Perfil model
+        # The 'instance' argument ensures the form is pre-filled with existing data and updates that instance
+        profile_form = PerfilForm(request.POST, instance=request.user.perfil) 
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
+            return redirect('perfil')
+        else:
+            messages.error(request, 'Hubo un error al actualizar tu perfil. Por favor, revisa los campos.')
+    else:
+        user_form = ActualizarPerfilForm(user=request.user, instance=request.user)
+        profile_form = PerfilForm(instance=request.user.perfil) #
+
+    context = {
+        'user_form': user_form,
+        'profile_form': profile_form,
+    }
+    return render(request, 'usuarios/editar_perfil.html', context)
+
+        
 
 @login_required
 def cambiar_password(request):
@@ -133,14 +108,11 @@ def cambiar_password(request):
         try:
             # Crear formulario con los datos POST
             form = PasswordChangeForm(request.user, request.POST)
-            
             if form.is_valid():
                 # Guardar nueva contraseña
                 user = form.save()
-                
                 # Mantener la sesión activa después del cambio de contraseña
                 update_session_auth_hash(request, user)
-                
                 logger.info(f"Contraseña cambiada para usuario {user.username}")
                 messages.success(request, 'Tu contraseña ha sido cambiada correctamente.')
             else:
@@ -165,52 +137,57 @@ def cambiar_password(request):
 # FUNCIONES AUXILIARES PARA VERIFICAR PERMISOS
 def es_admin(user):
     """Verifica si el usuario es administrador"""
-    return (user.is_authenticated and 
-            hasattr(user, 'perfil') and 
+    if not user.is_authenticated:
+        return False
+    
+    # Los superusers siempre son admins
+    if user.is_superuser:
+        return True
+    
+    # Verificar perfil
+    return (hasattr(user, 'perfil') and 
+            user.perfil and 
             user.perfil.es_admin)
 
 def puede_editar(user):
     """Verifica si el usuario puede editar contenido"""
-    return (user.is_authenticated and 
-            hasattr(user, 'perfil') and 
+    if not user.is_authenticated:
+        return False
+    
+    # Los superusers siempre pueden editar
+    if user.is_superuser:
+        return True
+    
+    # Verificar perfil
+    return (hasattr(user, 'perfil') and 
+            user.perfil and 
             user.perfil.puede_editar)
 
 def es_moderador_o_admin(user):
     """Verifica si el usuario es moderador o admin"""
-    return (user.is_authenticated and 
-            hasattr(user, 'perfil') and 
+    if not user.is_authenticated:
+        return False
+    
+    # Los superusers siempre son admins
+    if user.is_superuser:
+        return True
+    
+    # Verificar perfil
+    return (hasattr(user, 'perfil') and 
+            user.perfil and 
             (user.perfil.es_moderador or user.perfil.es_admin))
 
-# FORMULARIO PERSONALIZADO DE REGISTRO
-class RegistroForm(UserCreationForm):
-    email = forms.EmailField(required=True)
-    first_name = forms.CharField(max_length=30, required=True, label='Nombre')
-    last_name = forms.CharField(max_length=30, required=True, label='Apellidos')
-
-    class Meta:
-        model = User
-        fields = ("username", "first_name", "last_name", "email", "password1", "password2")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Personalizar los widgets y clases CSS
-        for field_name, field in self.fields.items():
-            field.widget.attrs['class'] = 'form-control'
-            
-        # Personalizar labels y help texts
-        self.fields['username'].help_text = 'Requerido. 150 caracteres o menos. Solo letras, dígitos y @/./+/-/_'
-        self.fields['password1'].help_text = 'Tu contraseña debe tener al menos 8 caracteres.'
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.email = self.cleaned_data["email"]
-        user.first_name = self.cleaned_data["first_name"]
-        user.last_name = self.cleaned_data["last_name"]
-        if commit:
-            user.save()
-            # Crear perfil automáticamente
-            Perfil.objects.get_or_create(user=user)
-        return user
+def asegurar_perfil_superuser(sender, instance, created, **kwargs):
+    """Signal para crear perfil automáticamente para superusers"""
+    if created and instance.is_superuser:
+        perfil, created = Perfil.objects.get_or_create(
+            user=instance,
+            defaults={
+                'es_admin': True,
+                'puede_editar': True,
+                'es_moderador': False
+            }
+        )
 
 def login_view(request):
     """Vista personalizada para login"""
@@ -220,12 +197,26 @@ def login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
+        remember_me = request.POST.get('remember_me')
         
         if username and password:
             user = authenticate(request, username=username, password=password)
             if user is not None:
                 if user.is_active:
                     login(request, user)
+
+                    if remember_me:
+                        # La sesion no expirara hasta que se acabe la cooke
+                        request.session.set_expiry(settings.SESSION_COOKIE_AGE)
+                    else:
+                        # La sesion expirara cuando cierren el navegador
+                        request.session.set_expiry(0)
+
+                    # Actualizar last_activity al hacer login
+                    perfil, created = Perfil.objects.get_or_create(user=user)
+                    perfil.last_activity = timezone.now()
+                    perfil.save()
+                    
                     logger.info(f"Usuario {username} inició sesión correctamente")
                     messages.success(request, f'¡Bienvenido {user.first_name or user.username}!')
                     
@@ -256,11 +247,14 @@ def registro(request):
     """Vista para registro de nuevos usuarios"""
     if request.method == 'POST':
         try:
-            form = RegistroForm(request.POST)
+            form = RegistroForm(request.POST, request.FILES)
             if form.is_valid():
                 with transaction.atomic():
                     # Crear el usuario
                     user = form.save()
+                    
+                    # Crear perfil automáticamente
+                    #Perfil.objects.create(user=user)
                     
                     # Autenticar y hacer login automáticamente
                     username = form.cleaned_data.get('username')
@@ -271,7 +265,7 @@ def registro(request):
                         login(request, user)
                         logger.info(f"Usuario {username} registrado y autenticado correctamente")
                         messages.success(request, f'¡Bienvenido {user.first_name}! Tu cuenta ha sido creada exitosamente.')
-                        return redirect('home')  # Redirigir al inicio después del registro
+                        return redirect('home')
                     else:
                         logger.error(f"Error al autenticar usuario recién registrado: {username}")
                         messages.success(request, 'Tu cuenta ha sido creada exitosamente. Por favor, inicia sesión.')
@@ -305,7 +299,6 @@ def registro(request):
         'form': form,
         'title': 'Registro de Usuario'
     }
-    
     return render(request, 'registration/registro.html', context)
 
 # VISTAS DE ADMINISTRACIÓN
@@ -314,12 +307,22 @@ def registro(request):
 def panel_admin(request):
     """Panel principal de administración"""
     try:
-        
         # Estadísticas generales
         total_usuarios = User.objects.count()
         usuarios_activos = User.objects.filter(is_active=True).count()
-        total_posts = Post.objects.count() if 'Post' in globals() else 0
-        posts_publicados = Post.objects.filter(publicado=True).count() if 'Post' in globals() else 0
+        
+        # Manejar Post de forma segura
+        total_posts = 0
+        posts_publicados = 0
+        posts_recientes = []
+        
+        try:
+            total_posts = Post.objects.count()
+            posts_publicados = Post.objects.filter(publicado=True).count()
+            posts_recientes = Post.objects.select_related('usuario').order_by('-fecha_creacion')[:10]
+        except:
+            # Si el modelo Post no existe o hay algún error
+            pass
         
         # Obtener todos los usuarios con sus perfiles para la tabla
         usuarios = User.objects.select_related('perfil').order_by('-date_joined')
@@ -332,14 +335,8 @@ def panel_admin(request):
         # Usuarios recientes (últimos 10)
         usuarios_recientes = User.objects.select_related('perfil').order_by('-date_joined')[:10]
         
-        # Posts recientes si existen
-        posts_recientes = []
-        if 'Post' in globals():
-            posts_recientes = Post.objects.select_related('usuario').order_by('-fecha_creacion')[:10]
-        
-        # Actividad reciente simulada (puedes implementar un modelo de log más tarde)
+        # Actividad reciente basada en usuarios nuevos
         actividad_reciente = []
-        # Ejemplo de actividad reciente basada en usuarios nuevos
         for usuario in usuarios_recientes[:5]:
             actividad_reciente.append({
                 'descripcion': f'Nuevo usuario registrado: {usuario.username}',
@@ -356,13 +353,12 @@ def panel_admin(request):
             'posts_publicados': posts_publicados,
             'usuarios_recientes': usuarios_recientes,
             'posts_recientes': posts_recientes,
-            'usuarios': usuarios,  # Para la tabla principal
+            'usuarios': usuarios,
             'administradores_count': administradores_count,
             'moderadores_count': moderadores_count,
             'usuarios_activos_count': usuarios_activos_count,
             'actividad_reciente': actividad_reciente,
         }
-        
         return render(request, 'usuarios/admin_panel.html', context)
         
     except Exception as e:
@@ -400,166 +396,13 @@ def gestionar_usuarios(request):
         elif status_filter == 'moderator':
             usuarios = usuarios.filter(perfil__es_moderador=True)
         
-        # Paginación
-        paginator = Paginator(usuarios, 20)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        
-        context = {
-            'title': 'Gestionar Usuarios',
-            'usuarios': page_obj,
-            'search_query': search_query,
-            'status_filter': status_filter,
-            'total_usuarios': usuarios.count(),
-        }
-        
-        return render(request, 'admin/gestionar_usuarios.html', context)
-        
-    except Exception as e:
-        logger.error(f"Error en gestionar usuarios: {e}")
-        messages.error(request, 'Error al cargar la gestión de usuarios.')
-        return redirect('panel_admin')
-
-@login_required
-@user_passes_test(es_admin)
-@require_http_methods(["POST"])
-def cambiar_estado_usuario_view(request, user_id):
-    """Cambiar estado activo/inactivo de un usuario"""
-    try:
-        usuario = get_object_or_404(User, id=user_id)
-        
-        # No permitir desactivar al propio admin
-        if usuario == request.user:
-            messages.error(request, 'No puedes desactivar tu propia cuenta.')
-            return redirect('gestionar_usuarios')
-        
-        # Cambiar estado
-        usuario.is_active = not usuario.is_active
-        usuario.save()
-        
-        estado = 'activado' if usuario.is_active else 'desactivado'
-        logger.info(f"Usuario {usuario.username} fue {estado} por {request.user.username}")
-        messages.success(request, f'Usuario {usuario.username} ha sido {estado}.')
-        
-    except Exception as e:
-        logger.error(f"Error al cambiar estado de usuario: {e}")
-        messages.error(request, 'Error al cambiar el estado del usuario.')
-    
-    return redirect('gestionar_usuarios')
-
-@login_required
-@user_passes_test(es_admin)
-@require_http_methods(["POST"])
-def cambiar_rol_usuario_view(request, user_id):
-    """Cambiar rol de un usuario"""
-    try:
-        usuario = get_object_or_404(User, id=user_id)
-        
-        # No permitir cambiar el rol del propio admin
-        if usuario == request.user:
-            messages.error(request, 'No puedes cambiar tu propio rol.')
-            return redirect('panel_admin')
-        
-        # Obtener o crear perfil
-        perfil, created = Perfil.objects.get_or_create(user=usuario)
-        
-        # Obtener el nuevo rol del POST
-        nuevo_rol = request.POST.get('rol', 'usuario')
-        
-        # Resetear todos los permisos
-        perfil.es_admin = False
-        perfil.es_moderador = False
-        perfil.puede_editar = False
-        
-        # Asignar el nuevo rol
-        if nuevo_rol == 'administrador':
-            perfil.es_admin = True
-            perfil.puede_editar = True
-        elif nuevo_rol == 'moderador':
-            perfil.es_moderador = True
-            perfil.puede_editar = True
-        elif nuevo_rol == 'usuario':
-            # Los permisos ya están en False
-            pass
-        
-        perfil.save()
-        
-        logger.info(f"Rol de {usuario.username} cambiado a {nuevo_rol} por {request.user.username}")
-        messages.success(request, f'Rol de {usuario.username} cambiado a {nuevo_rol} correctamente.')
-        
-    except Exception as e:
-        logger.error(f"Error al cambiar rol: {e}")
-        messages.error(request, 'Error al cambiar el rol del usuario.')
-    
-    return redirect('panel_admin')
-
-@login_required
-@user_passes_test(es_admin)
-def debug_user_info(request, user_id):
-    """Ver detalles de un usuario específico"""
-    try:
-        usuario = get_object_or_404(User, id=user_id)
-        
-        # Estadísticas del usuario
-        posts_count = 0
-        posts_publicados = 0
-        
-        if 'Post' in globals():
-            posts_count = Post.objects.filter(usuario=usuario).count()
-            posts_publicados = Post.objects.filter(usuario=usuario, publicado=True).count()
-        
-        context = {
-            'title': f'Usuario: {usuario.username}',
-            'usuario': usuario,
-            'posts_count': posts_count,
-            'posts_publicados': posts_publicados,
-        }
-        
-        return render(request, 'admin/ver_usuario.html', context)
-        
-    except Exception as e:
-        logger.error(f"Error al ver usuario: {e}")
-        messages.error(request, 'Error al cargar los detalles del usuario.')
-        return redirect('gestionar_usuarios')
-
-@login_required
-@user_passes_test(es_admin)
-def gestionar_usuarios(request):
-    """Vista para gestionar usuarios"""
-    try:
-        # Filtros de búsqueda
-        search_query = request.GET.get('search', '')
-        status_filter = request.GET.get('status', 'all')
-        
-        # Consulta base
-        usuarios = User.objects.select_related('perfil').all()
-        
-        # Aplicar filtros
-        if search_query:
-            usuarios = usuarios.filter(
-                Q(username__icontains=search_query) |
-                Q(first_name__icontains=search_query) |
-                Q(last_name__icontains=search_query) |
-                Q(email__icontains=search_query)
-            )
-        
-        if status_filter == 'active':
-            usuarios = usuarios.filter(is_active=True)
-        elif status_filter == 'inactive':
-            usuarios = usuarios.filter(is_active=False)
-        elif status_filter == 'admin':
-            usuarios = usuarios.filter(perfil__es_admin=True)
-        elif status_filter == 'moderator':
-            usuarios = usuarios.filter(perfil__es_moderador=True)
-        
-        # **Añadir estado de sesión en tiempo real**
-        # Define un estado para "online"
-        online_threshold_minutes = 5 # <--- Adjust this as needed for testing
+        # Añadir estado de sesión en tiempo real
+        online_threshold_minutes = 5
         online_threshold = timezone.now() - timedelta(minutes=online_threshold_minutes)
         logger.info(f"View: Online threshold set to: {online_threshold}")
-
+        
         for user in usuarios:
-            # Ensure user has a profile and last_activity
+            # Asegurar que el usuario tenga perfil y last_activity
             if hasattr(user, 'perfil') and user.perfil and user.perfil.last_activity:
                 logger.info(f"View: Checking user {user.username}. Last activity: {user.perfil.last_activity}")
                 if user.perfil.last_activity > online_threshold:
@@ -571,7 +414,6 @@ def gestionar_usuarios(request):
             else:
                 user.estado_sesion = 'Inactivo'
                 logger.info(f"View: User {user.username} has no profile or last_activity. Set Inactive.")
-
         
         # Paginación
         paginator = Paginator(usuarios, 20)
@@ -585,7 +427,6 @@ def gestionar_usuarios(request):
             'status_filter': status_filter,
             'total_usuarios': usuarios.count(),
         }
-        
         return render(request, 'admin/gestionar_usuarios.html', context)
         
     except Exception as e:
@@ -668,14 +509,28 @@ def cambiar_rol_usuario_view(request, user_id):
 
 @login_required
 @user_passes_test(es_admin)
+@require_http_methods(["POST"])
 def eliminar_usuario(request, user_id):
-    usuario = get_object_or_404(User, id=user_id)
-    if usuario == request.user:
-        messages.error(request, "No puedes eliminar tu propia cuenta.")
-    else:
+    """Eliminar un usuario del sistema"""
+    try:
+        usuario = get_object_or_404(User, id=user_id)
+        
+        # No permitir eliminar al propio admin
+        if usuario == request.user:
+            messages.error(request, "No puedes eliminar tu propia cuenta.")
+            return redirect('gestionar_usuarios')
+        
+        username = usuario.username
         usuario.delete()
-        messages.success(request, f'Usuario {usuario.username} eliminado correctamente.')
-    return redirect('panel_admin')  # Ajusta el nombre de la URL del panel admin
+        
+        logger.info(f"Usuario {username} eliminado por {request.user.username}")
+        messages.success(request, f'Usuario {username} eliminado correctamente.')
+        
+    except Exception as e:
+        logger.error(f"Error al eliminar usuario: {e}")
+        messages.error(request, 'Error al eliminar el usuario.')
+    
+    return redirect('gestionar_usuarios')
 
 @login_required
 @user_passes_test(es_admin)
@@ -688,17 +543,27 @@ def debug_user_info(request, user_id):
         posts_count = 0
         posts_publicados = 0
         
-        if 'Post' in globals():
+        try:
             posts_count = Post.objects.filter(usuario=usuario).count()
             posts_publicados = Post.objects.filter(usuario=usuario, publicado=True).count()
+        except:
+            # Si el modelo Post no existe
+            pass
+        
+        # Calcular estado de sesión
+        estado_sesion = 'Inactivo'
+        if hasattr(usuario, 'perfil') and usuario.perfil and usuario.perfil.last_activity:
+            online_threshold = timezone.now() - timedelta(minutes=5)
+            if usuario.perfil.last_activity > online_threshold:
+                estado_sesion = 'Activo'
         
         context = {
             'title': f'Usuario: {usuario.username}',
             'usuario': usuario,
             'posts_count': posts_count,
             'posts_publicados': posts_publicados,
+            'estado_sesion': estado_sesion,
         }
-        
         return render(request, 'admin/ver_usuario.html', context)
         
     except Exception as e:

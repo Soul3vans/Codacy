@@ -1,18 +1,26 @@
 # myapp/signals.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.contrib.auth.models import User # O tu CustomUser model
+from django.contrib.auth.models import User
 from .models import Perfil
 
 @receiver(post_save, sender=User)
-def crear_o_actualizar_perfil_usuario(sender, instance, created, **kwargs):
+def crear_perfil_usuario(sender, instance, created, **kwargs):
+    """Crear perfil automáticamente cuando se crea un usuario"""
     if created:
-        Perfil.objects.create(user=instance, es_admin=instance.is_superuser)
-    else:
-        # Actualiza es_admin si el usuario se convierte en superusuario o deja de serlo
-        if hasattr(instance, 'perfil'):
-            if instance.perfil.es_admin != instance.is_superuser:
-                instance.perfil.es_admin = instance.is_superuser
-                instance.perfil.save()
-        else: # En caso de que un perfil no exista por alguna razón
-            Perfil.objects.create(user=instance, es_admin=instance.is_superuser)
+        # Configurar permisos especiales para superusuarios
+        if instance.is_superuser:
+            Perfil.objects.create(
+                user=instance,
+                es_admin=True,
+                puede_editar=True,
+                es_moderador=False
+            )
+        else:
+            Perfil.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def guardar_perfil_usuario(sender, instance, **kwargs):
+    """Guardar perfil cuando se guarda el usuario"""
+    if hasattr(instance, 'perfil'):
+        instance.perfil.save()

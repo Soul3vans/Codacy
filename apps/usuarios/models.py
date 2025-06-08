@@ -1,37 +1,63 @@
 from django.db import models
+from django.db.models import IntegerChoices, IntegerField
 from django.contrib.auth.models import User
+from django.urls import reverse 
 from django.utils import timezone
 from PIL import Image
 import os
 
+class CedeChoice(IntegerChoices):
+    """Define las Cedes Universitarias"""
+
+    uho_olm = 1, "Oscar Lucero Moya"
+    uho_csm = 2, "Celia Sánchez Manduley"
+    uho_jlc = 3, "José de la Luz y Caballero"
+
 class Perfil(models.Model):
-    """Modelo para el perfil extendido del usuario"""
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-    bio = models.TextField(max_length=500, blank=True)
-    fecha_nacimiento = models.DateField(blank=True, null=True)
-    telefono = models.CharField(max_length=15, blank=True)
-    ciudad = models.CharField(max_length=100, blank=True)
-    last_activity = models.DateTimeField(null=True, blank=True)
+    """Modelo para el perfil del usuario"""
     
-    # Permisos y roles
-    es_admin = models.BooleanField(default=False)
-    es_moderador = models.BooleanField(default=False)
-    puede_editar = models.BooleanField(default=False)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
     
-    # Configuraciones
-    recibir_notificaciones = models.BooleanField(default=True)
-    perfil_publico = models.BooleanField(default=True)
-    
-    fecha_actualizacion = models.DateTimeField(auto_now=True)
-    
+    telefono = models.CharField(max_length=20, blank=True, help_text='Número de teléfono del usuario')
+    cede = IntegerField(verbose_name="Cedes", choices=CedeChoice.choices, blank=True, null=True)
+    cargo = models.CharField(max_length=50, blank=False, help_text='Cargo que ocupa')
+    recibir_notificaciones = models.BooleanField(default=True, help_text='Si el usuario desea recibir notificaciones por email')
+    es_moderador = models.BooleanField(default=False, help_text='Si el usuario tiene permisos de moderador')
+    es_admin = models.BooleanField(default=False, help_text='Si el usuario tiene permisos de administrador')
+    puede_editar = models.BooleanField(default=False, help_text='Si el usuario puede editar contenido')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    last_activity = models.DateTimeField(auto_now=True)
+
     class Meta:
         verbose_name = 'Perfil'
         verbose_name_plural = 'Perfiles'
-    
+        ordering = ['-fecha_creacion']
+
     def __str__(self):
-        return f'Perfil de {self.user.username}'
-    
+        return f'Perfil de {self.user.get_full_name() or self.user.username}'
+
+    def get_absolute_url(self):
+        return reverse('perfil', kwargs={'pk': self.pk})
+
+    @property
+    def nombre_completo(self):
+        """Retorna el nombre completo del usuario"""
+        if self.user.first_name and self.user.last_name:
+            return f'{self.user.first_name} {self.user.last_name}'
+        return self.user.username
+
+    def actualizar_actividad(self):
+        """Actualiza la última actividad del usuario"""
+        self.last_activity = timezone.now()
+        self.save(update_fields=['last_activity'])
+
+    def es_online(self):
+        """Verifica si el usuario está online basado en la última actividad"""
+        if self.last_activity:
+            from datetime import timedelta
+            return self.last_activity > timezone.now() - timedelta(minutes=5)
+        return False
+
     def save(self, *args, **kwargs):
         # Si es admin, automáticamente es moderador y puede editar
         if self.es_admin:
@@ -42,14 +68,12 @@ class Perfil(models.Model):
             self.puede_editar = True
         
         super().save(*args, **kwargs)
-        
-        # Redimensionar avatar si es muy grande
-        if self.avatar:
-            img = Image.open(self.avatar.path)
-            if img.height > 300 or img.width > 300:
-                output_size = (300, 300)
-                img.thumbnail(output_size)
-                img.save(self.avatar.path)
+
+    def delete(self, *args, **kwargs):
+        """Elimina el archivo de avatar al eliminar el perfil"""
+        if self.avatar and os.path.exists(self.avatar.path):
+            os.remove(self.avatar.path)
+        super().delete(*args, **kwargs)
 
 class Post(models.Model):
     """Modelo para los posts del blog"""
