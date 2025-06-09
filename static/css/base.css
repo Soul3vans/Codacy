@@ -136,6 +136,11 @@ body {
 /* =======================
    BADGES Y ETIQUETAS
    ======================= */
+
+.status-active {
+  color: #28a745;
+}
+
 .badge {
   font-size: 0.75rem;
   font-weight: 500;

@@ -93,3 +93,54 @@ class Archivo(models.Model):
     
     def __str__(self):
         return self.nombre
+
+class EnlaceInteres(models.Model):
+    CATEGORIAS_CHOICES = [
+        ('', 'Sin categoría'),
+        ('educativo', 'Educativo'),
+        ('institucional', 'Institucional'),
+        ('recursos', 'Recursos'),
+        ('herramientas', 'Herramientas'),
+        ('noticias', 'Noticias'),
+        ('otros', 'Otros'),
+    ]
+    
+    titulo = models.CharField(max_length=200, verbose_name='Título')
+    url = models.URLField(verbose_name='URL')
+    descripcion = models.TextField(blank=True, verbose_name='Descripción')
+    categoria = models.CharField(
+        max_length=20, 
+        choices=CATEGORIAS_CHOICES, 
+        blank=True,
+        verbose_name='Categoría'
+    )
+    imagen = models.ImageField(
+        upload_to='enlaces/',
+        blank=True,
+        null=True,
+        verbose_name='Imagen'
+    )
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    es_destacado = models.BooleanField(default=False, verbose_name='Destacado')
+    orden = models.IntegerField(default=0, verbose_name='Orden')
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
+    fecha_modificacion = models.DateTimeField(auto_now=True, verbose_name='Fecha de modificación')
+    creado_por = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name='Creado por'
+    )
+    
+    class Meta:
+        verbose_name = 'Enlace de Interés'
+        verbose_name_plural = 'Enlaces de Interés'
+        ordering = ['-es_destacado', 'orden', '-fecha_creacion']
+    
+    def __str__(self):
+        return self.titulo
+    
+    def get_categoria_display_custom(self):
+        """Retorna el nombre de la categoría capitalizado"""
+        if self.categoria:
+            return dict(self.CATEGORIAS_CHOICES)[self.categoria].capitalize()
+        return 'Sin categoría'

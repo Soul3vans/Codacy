@@ -1,6 +1,6 @@
-{% extends 'base.html' %} {# Assumes you have a base.html file for your site's layout #}
+{% extends 'base.html' %}
 
-{% block title %}Editar Post: {{ post.titulo }}{% endblock %}
+{% block title %}Editar Publicación: {{ post.titulo }}{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -8,12 +8,12 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h2>Editar Post</h2>
+                    <h2>Editar Publicación</h2>
                 </div>
                 <div class="card-body">
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
-                        {{ form.as_p }} {# Renders all form fields as paragraphs, pre-filled with post data #}
+                        {{ form.as_p }} 
                         <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                     </form>
                 </div>

@@ -1,11 +1,12 @@
 from django.urls import path
 from django.contrib.auth.views import LogoutView
+from apps.dashboard.views import inicio
 from . import views
 
 urlpatterns = [
     
     # Página principal
-    path('', views.home, name='home'),
+    path('', inicio, name='inicio'),
     
     # Autenticación
     path('registro/', views.registro, name='registro'),

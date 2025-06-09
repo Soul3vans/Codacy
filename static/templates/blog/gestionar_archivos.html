@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Gestionar Archivos{% endblock %}
+{% block title %}Gestionar Archivos - Gau{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -77,4 +78,8 @@
         </ul>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'javascript/javascript.js' %}"></script>
 {% endblock %}

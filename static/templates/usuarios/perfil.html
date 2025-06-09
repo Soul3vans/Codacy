@@ -1,97 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Mi Perfil - infoweb{% endblock %}
+{% block title %}Mi Perfil - GAU{% endblock %}
 
 {% block description %}Gestiona tu información personal y configuración de cuenta{% endblock %}
 
 {% block extra_css %}
-<style>
-    /* Add some basic styling for responsiveness and better aesthetics */
-    .profile-header {
-        background-color: #f8f9fa;
-        padding: 40px 0;
-        margin-bottom: 30px;
-        border-bottom: 1px solid #e9ecef;
-    }
-    .profile-avatar {
-        font-size: 80px;
-        color: #007bff;
-    }
-    .admin-badge, .moderador-badge {
-        font-size: 0.8em;
-        padding: 0.3em 0.6em;
-        border-radius: 0.25rem;
-        color: #fff;
-    }
-    .admin-badge {
-        background-color: #dc3545;
-    }
-    .moderador-badge {
-        background-color: #007bff;
-    }
-    .profile-card {
-        border: none;
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    }
-    .profile-card .card-header {
-        background-color: #fff;
-        border-bottom: 1px solid rgba(0,0,0,.125);
-        color: #007bff;
-    }
-    .info-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 8px 0;
-        border-bottom: 1px dashed #e9ecef;
-    }
-    .info-item:last-child {
-        border-bottom: none;
-    }
-    .info-label {
-        font-weight: 600;
-        color: #495057;
-    }
-    .info-value {
-        color: #212529;
-    }
-    .account-status {
-        font-weight: 600;
-    }
-    .status-active {
-        color: #28a745;
-    }
-    .stats-card {
-        background-color: #e2f0ff;
-        color: #007bff;
-        padding: 20px;
-        border-radius: 0.5rem;
-        text-align: center;
-        margin-bottom: 20px;
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    }
-    .stats-number {
-        font-size: 2.5em;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    .btn-update, .btn-change-password {
-        background-color: #007bff;
-        border-color: #007bff;
-        color: #fff;
-    }
-    .btn-update:hover, .btn-change-password:hover {
-        background-color: #0056b3;
-        border-color: #0056b3;
-    }
-    .modal-header {
-        background-color: #007bff;
-        color: white;
-        border-bottom: none;
-    }
-    .modal-header .btn-close {
-        filter: invert(1) brightness(2); /* Makes the close button white */
-    }
-</style>
+
 {% endblock %}
 
 {% block content %}

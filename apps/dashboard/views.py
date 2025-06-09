@@ -4,7 +4,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib import messages
 from django.utils.text import slugify
-from .models import Post, Categoria, Comentario, Archivo
+from .models import Post, Categoria, Comentario, Archivo, EnlaceInteres
 from .forms import PostForm, ComentarioForm, ArchivoForm
 
 def puede_editar(user):
@@ -26,18 +26,24 @@ def puede_editar(user):
     
     return False # Si no cumple ninguna de las condiciones anteriores
 
-
 def inicio(request):
-    """Página principal del blog"""
-    posts_destacados = Post.objects.filter(estado='publicado', destacado=True)[:3]
-    posts_recientes = Post.objects.filter(estado='publicado')[:6]
-    categorias = Categoria.objects.filter(activa=True)
+    """Vista de la página de inicio"""
+    
+    # Obtener publicaciones recientes (tu código existente)
+    posts_recientes = Post.objects.filter(
+        estado='publicado'  # o el valor correcto según tu modelo
+    ).order_by('-fecha_publicacion')[:6]  # Últimos 6 posts
+    
+    # Obtener enlaces de interés activos
+    enlaces_interes = EnlaceInteres.objects.filter(
+        activo=True
+    ).order_by('-es_destacado', 'orden', '-fecha_creacion')[:6]  # Últimos 6 enlaces
     
     context = {
-        'posts_destacados': posts_destacados,
         'posts_recientes': posts_recientes,
-        'categorias': categorias,
+        'enlaces_interes': enlaces_interes,
     }
+    
     return render(request, 'dashboard/index.html', context)
 
 def lista_posts(request):
@@ -223,4 +229,114 @@ def editar_archivo(request, pk):
             return redirect('gestionar_archivos') # Redirect to your file management page
     else:
         form = ArchivoForm(instance=archivo)
-    return render(request, 'your_app_name/editar_archivo.html', {'form': form, 'archivo': archivo})
+    return render(request, 'blog/editar_archivo.html', {'form': form, 'archivo': archivo})
+
+@login_required
+def gestionar_enlaces(request):
+    """Vista para gestionar enlaces de interés"""
+    
+    # Verificar permisos
+    if not hasattr(request.user, 'perfil') or not request.user.perfil.puede_editar:
+        messages.error(request, 'No tienes permisos para acceder a esta sección.')
+        return redirect('inicio')
+    
+    if request.method == 'POST':
+        return manejar_enlace_post(request)
+    
+    # Obtener enlaces con paginación
+    enlaces_list = EnlaceInteres.objects.all().order_by('-fecha_creacion')
+    paginator = Paginator(enlaces_list, 10)  # 10 enlaces por página
+    page_number = request.GET.get('page')
+    enlaces = paginator.get_page(page_number)
+    
+    context = {
+        'enlaces': enlaces,
+    }
+    
+    return render(request, 'blog/gestionar_enlaces.html', context)
+
+def manejar_enlace_post(request):
+    """Maneja las operaciones POST para enlaces"""
+    
+    action = request.POST.get('action')
+    
+    if action == 'eliminar':
+        return eliminar_enlace(request)
+    else:
+        return guardar_enlace(request)
+
+def guardar_enlace(request):
+    """Guarda o actualiza un enlace"""
+    try:
+        enlace_id = request.POST.get('enlace_id')
+        
+        # Datos del formulario
+        datos = {
+            'titulo': request.POST.get('titulo'),
+            'url': request.POST.get('url'),
+            'descripcion': request.POST.get('descripcion', ''),
+            'categoria': request.POST.get('categoria', ''),
+            'activo': 'activo' in request.POST,
+            'es_destacado': 'es_destacado' in request.POST,
+        }
+        
+        if enlace_id:
+            # Actualizar enlace existente
+            enlace = get_object_or_404(EnlaceInteres, id=enlace_id)
+            for key, value in datos.items():
+                setattr(enlace, key, value)
+            
+            # Manejar imagen si se subió una nueva
+            if 'imagen' in request.FILES:
+                enlace.imagen = request.FILES['imagen']
+                
+            enlace.save()
+            messages.success(request, 'Enlace actualizado correctamente.')
+        else:
+            # Crear nuevo enlace
+            enlace = EnlaceInteres(**datos)
+            enlace.creado_por = request.user
+            
+            # Manejar imagen
+            if 'imagen' in request.FILES:
+                enlace.imagen = request.FILES['imagen']
+                
+            enlace.save()
+            messages.success(request, 'Enlace creado correctamente.')
+            
+    except Exception as e:
+        messages.error(request, f'Error al guardar el enlace: {str(e)}')
+    
+    return redirect('gestionar_enlaces')
+
+def eliminar_enlace(request):
+    """Elimina un enlace"""
+    try:
+        enlace_id = request.POST.get('enlace_id')
+        enlace = get_object_or_404(EnlaceInteres, id=enlace_id)
+        titulo = enlace.titulo
+        enlace.delete()
+        messages.success(request, f'Enlace "{titulo}" eliminado correctamente.')
+    except Exception as e:
+        messages.error(request, f'Error al eliminar el enlace: {str(e)}')
+    
+    return redirect('gestionar_enlaces')
+
+@login_required
+def obtener_enlace_ajax(request, enlace_id):
+    """Vista AJAX para obtener datos de un enlace para edición"""
+    try:
+        enlace = get_object_or_404(EnlaceInteres, id=enlace_id)
+        data = {
+            'id': enlace.id,
+            'titulo': enlace.titulo,
+            'url': enlace.url,
+            'descripcion': enlace.descripcion,
+            'categoria': enlace.categoria,
+            'activo': enlace.activo,
+            'es_destacado': enlace.es_destacado,
+            'imagen_url': enlace.imagen.url if enlace.imagen else None,
+        }
+        return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)

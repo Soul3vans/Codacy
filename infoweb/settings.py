@@ -156,7 +156,7 @@ SECURE_HSTS_PRELOAD = True
 
 # URLs de login/logout
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'home'
+LOGIN_REDIRECT_URL = 'inicio'
 LOGOUT_REDIRECT_URL = 'login'
 
 LOGGING = {
