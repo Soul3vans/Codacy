@@ -28,6 +28,7 @@
                         <option value="imagen">Imagen</option>
                         <option value="documento">Documento</option>
                         <option value="video">Video</option>
+                        <option value="pdf">PDF</option>
                         <option value="otro">Otro</option>
                     </select>
                 </div>
@@ -38,6 +39,10 @@
                 <div class="mb-3 form-check">
                     <input type="checkbox" class="form-check-input" id="id_publico" name="publico">
                     <label class="form-check-label" for="id_publico">Público</label>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="id_es_formulario" name="es_formulario">
+                    <label class="form-check-label" for="id_es_formulario">Es Formulario</label>
                 </div>
                 <button type="submit" class="btn btn-primary">Subir Archivo</button>
             </form>
@@ -59,11 +64,16 @@
                             {% if archivo.descripcion %}
                                 <p class="mb-0 text-muted">{{ archivo.descripcion }}</p>
                             {% endif %}
-                            {% if archivo.publico %}
-                                <span class="badge bg-success">Público</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Privado</span>
-                            {% endif %}
+                            <div class="mt-2">
+                                {% if archivo.publico %}
+                                    <span class="badge bg-success">Público</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Privado</span>
+                                {% endif %}
+                                {% if archivo.es_formulario %}
+                                    <span class="badge bg-info">Formulario</span>
+                                {% endif %}
+                            </div>
                         </div>
                         <div>
                             <a href="{{ archivo.archivo.url }}" class="btn btn-info btn-sm" target="_blank">Ver</a>

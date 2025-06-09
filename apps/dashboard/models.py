@@ -75,6 +75,7 @@ class Archivo(models.Model):
         ('imagen', 'Imagen'),
         ('documento', 'Documento'),
         ('video', 'Video'),
+        ('pdf', 'PDF'),
         ('otro', 'Otro'),
     ]
     
@@ -85,6 +86,7 @@ class Archivo(models.Model):
     subido_por = models.ForeignKey(User, on_delete=models.CASCADE, related_name='archivos_dashboard')
     fecha_subida = models.DateTimeField(auto_now_add=True)
     publico = models.BooleanField(default=False)
+    es_formulario = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['-fecha_subida']
