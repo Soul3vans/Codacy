@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestionar Enlaces de Interés - GAU{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-link me-2"></i>Enlaces de Interés</h2>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEnlace">
+                    <i class="fas fa-plus me-2"></i>Agregar Enlace
+                </button>
+            </div>
+
+            <!-- Lista de Enlaces -->
+            <div class="card">
+                <div class="card-body">
+                    {% if enlaces %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Título</th>
+                                        <th>URL</th>
+                                        <th>Categoría</th>
+                                        <th>Estado</th>
+                                        <th>Destacado</th>
+                                        <th>Fecha</th>
+                                        <th width="200">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for enlace in enlaces %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ enlace.titulo }}</strong>
+                                            {% if enlace.descripcion %}
+                                                <br><small class="text-muted">{{ enlace.descripcion|truncatewords:10 }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ enlace.url }}" target="_blank" rel="noopener" class="text-decoration-none">
+                                                {{ enlace.url|truncatechars:40 }}
+                                                <i class="fas fa-external-link-alt ms-1"></i>
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if enlace.categoria %}
+                                                <span class="badge bg-secondary">{{ enlace.categoria }}</span>
+                                            {% else %}
+                                                <span class="text-muted">Sin categoría</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if enlace.activo %}
+                                                <span class="badge bg-success">Activo</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Inactivo</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if enlace.es_destacado %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-muted"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small>{{ enlace.fecha_creacion|date:"d/m/Y" }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button type="button" class="btn btn-outline-primary" 
+                                                        data-enlace-id="{{ enlace.id }}"
+                                                        data-enlace-titulo="{{ enlace.titulo }}"
+                                                        onclick="eliminarEnlace(this.dataset.enlaceId, this.dataset.enlaceTitulo)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" 
+                                                        data-enlace-id="{{ enlace.id }}"
+                                                        data-enlace-titulo="{{ enlace.titulo }}"
+                                                        onclick="eliminarEnlace(this.dataset.enlaceId, this.dataset.enlaceTitulo)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Paginación -->
+                        {% if enlaces.has_other_pages %}
+                        <nav aria-label="Paginación de enlaces">
+                            <ul class="pagination justify-content-center mt-4">
+                                {% if enlaces.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ enlaces.previous_page_number }}">Anterior</a>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in enlaces.paginator.page_range %}
+                                    {% if enlaces.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if enlaces.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ enlaces.next_page_number }}">Siguiente</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-link fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">No hay enlaces registrados</h4>
+                            <p class="text-muted">Comienza agregando tu primer enlace de interés.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Agregar/Editar Enlace -->
+<div class="modal fade" id="modalEnlace" tabindex="-1" aria-labelledby="modalEnlaceLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="formEnlace" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalEnlaceLabel">
+                        <i class="fas fa-link me-2"></i>Agregar Enlace de Interés
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="enlace_id" name="enlace_id" value="">
+                    
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="titulo" class="form-label">Título <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="titulo" name="titulo" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="categoria" class="form-label">Categoría</label>
+                            <select class="form-select" id="categoria" name="categoria">
+                                <option value="">Sin categoría</option>
+                                <option value="Educativo">Educativo</option>
+                                <option value="Institucional">Institucional</option>
+                                <option value="Recursos">Recursos</option>
+                                <option value="Herramientas">Herramientas</option>
+                                <option value="Noticias">Noticias</option>
+                                <option value="Otros">Otros</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="url" class="form-label">URL <span class="text-danger">*</span></label>
+                        <input type="url" class="form-control" id="url" name="url" placeholder="https://ejemplo.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3" 
+                                  placeholder="Breve descripción del enlace"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="imagen" class="form-label">Imagen (opcional)</label>
+                        <input type="file" class="form-control" id="imagen" name="imagen" accept="image/*">
+                        <div class="form-text">Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 2MB</div>
+                        <div id="imagen_preview" class="mt-2"></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="activo" name="activo" checked>
+                                <label class="form-check-label" for="activo">Enlace activo</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="es_destacado" name="es_destacado">
+                                <label class="form-check-label" for="es_destacado">Enlace destacado</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Guardar Enlace
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+<div class="modal fade" id="modalEliminar" tabindex="-1" aria-labelledby="modalEliminarLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEliminarLabel">
+                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar el enlace <strong id="enlace-titulo"></strong>?</p>
+                <p class="text-muted">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formEliminar" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="eliminar">
+                    <input type="hidden" id="eliminar_enlace_id" name="enlace_id" value="">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Limpiar formulario al cerrar modal
+    document.getElementById('modalEnlace').addEventListener('hidden.bs.modal', function () {
+        limpiarFormulario();
+    });
+
+    function limpiarFormulario() {
+        document.getElementById('formEnlace').reset();
+        document.getElementById('enlace_id').value = '';
+        document.getElementById('modalEnlaceLabel').innerHTML = '<i class="fas fa-link me-2"></i>Agregar Enlace de Interés';
+        document.getElementById('imagen_preview').innerHTML = '';
+    }
+
+    function editarEnlace(enlaceId) {
+        document.getElementById('modalEnlaceLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Editar Enlace de Interés';
+        document.getElementById('enlace_id').value = enlaceId;
+        
+        // Cargar datos del enlace via AJAX
+        fetch(`/api/enlaces/${enlaceId}/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('titulo').value = data.titulo;
+                document.getElementById('url').value = data.url;
+                document.getElementById('descripcion').value = data.descripcion || '';
+                document.getElementById('categoria').value = data.categoria || '';
+                document.getElementById('activo').checked = data.activo;
+                document.getElementById('es_destacado').checked = data.es_destacado;
+                
+                // Mostrar imagen actual si existe
+                if (data.imagen_url) {
+                    document.getElementById('imagen_preview').innerHTML = `
+                        <div class="mt-2">
+                            <img src="${data.imagen_url}" class="img-thumbnail" style="max-height: 150px;">
+                            <p class="small text-muted mt-1">Imagen actual</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar datos del enlace:', error);
+                alert('Error al cargar los datos del enlace');
+            });
+    }
+
+    function eliminarEnlace(enlaceId, titulo) {
+        document.getElementById('enlace-titulo').textContent = titulo;
+        document.getElementById('eliminar_enlace_id').value = enlaceId;
+        
+        var modal = new bootstrap.Modal(document.getElementById('modalEliminar'));
+        modal.show();
+    }
+
+    // Preview de imagen
+    document.getElementById('imagen').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const preview = document.getElementById('imagen_preview');
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `
+                    <div class="mt-2">
+                        <img src="${e.target.result}" class="img-thumbnail" style="max-height: 150px;">
+                        <p class="small text-muted mt-1">Vista previa de la imagen</p>
+                    </div>
+                `;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            preview.innerHTML = '';
+        }
+    });
+
+    // Validación de URL
+    document.getElementById('url').addEventListener('blur', function() {
+        const url = this.value;
+        if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+            this.value = 'https://' + url;
+        }
+    });
+</script>
+{% endblock %}
