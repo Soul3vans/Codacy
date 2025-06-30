@@ -35,10 +35,10 @@
                         <a class="nav-link" href="{% url 'inicio' %}">Inicio</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'lista_posts' %}">Guias</a>
+                        <a class="nav-link" href="{% url 'guia:archivo_guia' %}">Guías</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'lista_posts' %}">Formularios</a>
+                        <a class="nav-link" href="{% url 'guia:lista' %}">Formularios</a>
                     </li>
                 </ul>
                 
@@ -60,13 +60,6 @@
                                 </a></li>
                                 
                                 {% if user.perfil.puede_editar %}
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{% url 'crear_post' %}">
-                                        <i class="fas fa-plus me-2"></i>Crear Publicación
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="{% url 'gestionar_posts' %}">
-                                        <i class="fas fa-edit me-2"></i>Gestionar Publicación
-                                    </a></li>
                                     <li><a class="dropdown-item" href="{% url 'gestionar_archivos' %}">
                                         <i class="fas fa-file-upload me-2"></i>Gestionar Archivos
                                     </a></li>

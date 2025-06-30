@@ -38,14 +38,6 @@
 </section>
 
 <div class="container">
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
 
     <div class="row">
         <div class="col-lg-8">
@@ -57,50 +49,53 @@
                     </h4>
                 </div>
                 <div class="card-body">
-                    <div class="info-item">
-                        <div class="info-label">Nombre de usuario</div>
-                        <div class="info-value">{{ user.username }}
-                            {% if user.perfil.es_admin %}
-                            <span class="admin-badge ms-1">Admin</span>
-                            {% elif user.perfil.es_moderador %}
-                            <span class="moderador-badge ms-1">Mod</span>
+                    <h4>Información de la Cuenta</h4>
+                    <hr>
+                    <p><strong>Usuario:</strong> {{ user.username }}</p>
+                    <p><strong>Nombre completo:</strong> {{ user.get_full_name }}</p>
+                    <p><strong>Correo electrónico:</strong> {{ user.email }}</p>
+                    <p><strong>Miembro desde:</strong> {{ user.date_joined|date:"d M, Y" }}</p>
+                    
+                    <h4 class="mt-4">Detalles del Perfil</h4>
+                    <hr>
+                    <p><strong>Teléfono:</strong> {{ user_profile.telefono|default:"No especificado" }}</p>
+                    <p><strong>Sede Universitaria:</strong> {{ user_profile.get_cede_display|default:"No especificada" }}</p>
+                    <p><strong>Cargo:</strong> {{ user_profile.cargo|default:"No especificado" }}</p>
+                
+                    <div class="mt-3">
+                        <p>
+                            <strong>Recibir notificaciones por email:</strong>
+                            {% if user_profile.recibir_notificaciones %}
+                                <span class="badge bg-success">Sí</span>
+                            {% else %}
+                                <span class="badge bg-danger">No</span>
                             {% endif %}
-                        </div>
-                        
+                        </p>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Nombre completo</div>
-                        <div class="info-value">{{ user.get_full_name|default:"No especificado" }}</div>
+                
+                    <div class="mt-3">
+                        <p><strong>Firma Digital:</strong></p>
+                        {% if user_profile.firma_digital %}
+                            <div class="mb-2">
+                                <p><strong>Estado:</strong> Subida</p>
+                                {# Muestra una vista previa si es una imagen, si no, un enlace de descarga #}
+                                {% if user_profile.firma_digital.name|lower|slice:"-4:" in ".png.jpg.jpeg.gif" %}
+                                    <img src="{{ user_profile.firma_digital.url }}" alt="Firma Digital" class="img-thumbnail" style="max-height: 200px;">
+                                {% else %}
+                                    <a href="{{ user_profile.firma_digital.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-file me-1"></i> Ver archivo
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <p><strong>Estado:</strong> No se ha subido ninguna firma.</p>
+                        {% endif %}
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Correo electrónico</div>
-                        <div class="info-value">{{ user.email|default:"No especificado" }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Teléfono</div>
-                        <div class="info-value">{{ user.perfil.telefono|default:"No especificado" }}</div> {# Display phone #}
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Sede Universitaria</div>
-                        <div class="info-value">{{ user.perfil.get_cede_display|default:"No especificado" }}</div> {# Display cede #}
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Cargo</div>
-                        <div class="info-value">{{ user.perfil.cargo|default:"No especificado" }}</div> {# Display cargo #}
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Notificaciones por email</div>
-                        <div class="info-value">
-                            {% if user_profile.recibir_notificaciones %}Sí{% else %}No{% endif %} {# Display notifications preference #}
-                        </div>
-                    </div>                    
+                
                     <div class="text-center mt-4">
-                        <a href="{% url 'actualizar_perfil' %}" class="btn btn-update me-3">
-                            <i class="fas fa-edit me-2"></i>Editar Información
+                        <a href="{% url 'editar_perfil' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-edit me-2"></i> Editar Perfil
                         </a>
-                        <button type="button" class="btn btn-change-password" data-bs-toggle="modal" data-bs-target="#passwordModal">
-                            <i class="fas fa-key me-2"></i>Cambiar Contraseña
-                        </button>
                     </div>
                 </div>
             </div>

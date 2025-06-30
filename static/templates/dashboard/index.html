@@ -22,89 +22,42 @@
 
 <div class="container py-5">
 
-    <!-- Enlaces de Interés -->
-    {% if enlaces_interes %}
-    <section class="mb-5">
-        <h2 class="text-center mb-4">
-            <i class="fas fa-link me-2"></i>Enlaces de Interés
-        </h2>
-        <div class="row">
-            {% for enlace in enlaces_interes %}
-            <div class="col-lg-4 col-md-6 mb-4">
-                <div class="card h-100 border-primary">
-                    {% if enlace.imagen %}
-                        <img src="{{ enlace.imagen.url }}" class="card-img-top" alt="{{ enlace.titulo }}" style="height: 200px; object-fit: cover;">
-                    {% else %}
-                        <div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 200px;">
-                            <i class="fas fa-external-link-alt fa-3x text-primary opacity-50"></i>
-                        </div>
-                    {% endif %}
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title text-primary">{{ enlace.titulo }}</h5>
-                        <p class="card-text flex-grow-1">{{ enlace.descripcion|truncatewords:20 }}</p>
-                        {% if enlace.categoria %}
-                            <span class="badge bg-primary mb-2 align-self-start">{{ enlace.categoria }}</span>
-                        {% endif %}
-                        <div class="mt-auto">
-                            <small class="text-muted">
-                                {% if enlace.fecha_creacion %}
-                                    <i class="fas fa-calendar me-1"></i>{{ enlace.fecha_creacion|date:"d M Y" }}
-                                {% endif %}
-                            </small>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-transparent">
-                        <a href="{{ enlace.url }}" class="btn btn-primary btn-sm" target="_blank" rel="noopener noreferrer">
-                            <i class="fas fa-external-link-alt me-1"></i>Visitar Enlace
-                        </a>
-                        {% if enlace.es_destacado %}
-                            <span class="badge bg-warning text-dark ms-2">
-                                <i class="fas fa-star me-1"></i>Destacado
-                            </span>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
 
-    <!-- Publicaciones Recientes -->
-    <section class="mb-5">
-        <h2 class="text-center mb-4">
-            <i class="fas fa-clock me-2"></i>Publicaciones Recientes
-        </h2>
-        <div class="row">
-            {% for post in posts_recientes %}
-            <div class="col-lg-4 col-md-6 mb-4">
-                <div class="card h-100">
-                    {% if post.imagen_destacada %}
-                        <img src="{{ post.imagen_destacada.url }}" class="card-img-top" alt="{{ post.titulo }}" style="height: 200px; object-fit: cover;">
-                    {% endif %}
-                    <div class="card-body d-flex flex-column">
-                        {% if post.categoria %}
-                            <span class="badge bg-secondary mb-2 align-self-start">{{ post.categoria.nombre }}</span>
-                        {% endif %}
-                        <h5 class="card-title">{{ post.titulo }}</h5>
-                        <p class="card-text flex-grow-1">{{ post.resumen|truncatewords:15 }}</p>
-                        <div class="mt-auto">
-                            <small class="text-muted">
-                                <i class="fas fa-user me-1"></i>{{ post.autor.get_full_name|default:post.autor.username }}
-                                <i class="fas fa-calendar ms-2 me-1"></i>{{ post.fecha_publicacion|date:"d M Y" }}
-                            </small>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-transparent">
-                        <a href="{{ post.get_absolute_url }}" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-read me-1"></i>Leer más
-                        </a>
-                    </div>
+     <!-- Enlaces de Interés -->
+     {% if enlaces_interes %}
+<section class="mb-5">
+    <h2 class="text-center mb-4">
+        <i class="fas fa-link me-2"></i>Enlaces de Interés
+    </h2>
+    <ul class="list-group">
+        {% for enlace in enlaces_interes %}
+        <li class="list-group-item d-flex justify-content-between align-items-start">
+            <div class="ms-2 me-auto">
+                <div class="fw-bold">
+                    <a href="{{ enlace.url }}" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-external-link-alt me-1"></i>{{ enlace.titulo }}
+                    </a>
                 </div>
+                {{ enlace.descripcion|truncatewords:20 }}
+                {% if enlace.categoria %}
+                    <span class="badge bg-primary ms-2">{{ enlace.categoria }}</span>
+                {% endif %}
+                {% if enlace.es_destacado %}
+                    <span class="badge bg-warning text-dark ms-2">
+                        <i class="fas fa-star me-1"></i>Destacado
+                    </span>
+                {% endif %}
             </div>
-            {% endfor %}
-        </div>
-    </section>
+            {% if enlace.fecha_creacion %}
+                <small class="text-muted d-block text-end">
+                    <i class="fas fa-calendar me-1"></i>{{ enlace.fecha_creacion|date:"d M Y" }}
+                </small>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
 
     
 </div>

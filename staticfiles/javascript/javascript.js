@@ -243,3 +243,28 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 });
 
+function handleRadioChange() {
+    const radioButtons = document.querySelectorAll('.respuesta-radio');            
+    radioButtons.forEach(radio => {
+       radio.addEventListener('change', function() {
+            // Extraer el número de pregunta del name del radio button
+            const preguntaNumero = this.name.split('_')[1];
+            const fundamentoSection = document.getElementById(`fundamento_section_${preguntaNumero}`);
+                   
+            if (fundamentoSection) {
+                // Mostrar solo si se selecciona "No Aplica" (value="na")
+                if (this.value === 'na' && this.checked) {
+                    fundamentoSection.style.display = 'block';
+                } else {
+                    fundamentoSection.style.display = 'none';
+                    // Opcional: limpiar el textarea cuando se oculta
+                    const textarea = fundamentoSection.querySelector('textarea');
+                if (textarea) {
+                    textarea.value = '';
+                        }
+                    }
+                }
+            });
+        });
+};
+

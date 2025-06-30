@@ -1,0 +1,261 @@
+{% extends 'guia/base_guias.html' %}
+{% load static %}
+
+{% block title %}Mis Evaluaciones - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-chart-line me-2"></i>Mis Evaluaciones</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'guia:lista' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>Nueva Evaluación
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas del usuario -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Evaluaciones</h6>
+                        <h4>{{ total_evaluaciones }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clipboard-list fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Completadas</h6>
+                        <h4>{{ total_completadas }}</h4>
+                        <small>{{ porcentaje_completadas }}% del total</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">En Progreso</h6>
+                        <h4>{{ total_en_progreso }}</h4>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Promedio</h6>
+                        <h4>{{ promedio_cumplimiento }}%</h4>
+                        <small>De cumplimiento</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-percentage fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resumen de rendimiento -->
+{% if mejor_evaluacion %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-trophy text-warning me-2"></i>
+                    Mejor Evaluación
+                </h6>
+            </div>
+            <div class="card-body">
+                <h5>{{ mejor_evaluacion.guia.titulo_guia }}</h5>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Cumplimiento: {{ mejor_evaluacion.porcentaje_cumplimiento|floatformat:1 }}%</span>
+                    <span class="text-muted">{{ mejor_evaluacion.fecha_completada|date:"d/m/Y" }}</span>
+                </div>
+                <div class="progress mt-2">
+                    <div class="progress-bar bg-success" style="width: {{ mejor_evaluacion.porcentaje_cumplimiento }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    Evaluaciones por Mejorar
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if evaluaciones_bajo_rendimiento %}
+                    <p class="text-muted mb-2">{{ evaluaciones_bajo_rendimiento.count }} evaluación(es) con menos del 60% de cumplimiento</p>
+                    {% for eval in evaluaciones_bajo_rendimiento|slice:":3" %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small>{{ eval.guia.titulo_guia|truncatechars:25 }}</small>
+                        <span class="badge bg-danger">{{ eval.porcentaje_cumplimiento|floatformat:0 }}%</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-success">¡Excelente! Todas tus evaluaciones tienen buen rendimiento.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Lista de evaluaciones -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>
+            Historial de Evaluaciones
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if evaluaciones %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Guía</th>
+                        <th>Estado</th>
+                        <th>Progreso</th>
+                        <th>Fecha Inicio</th>
+                        <th>Fecha Completada</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for evaluacion in evaluaciones %}
+                    <tr>
+                        <td>
+                            <div>
+                                <strong>{{ evaluacion.guia.titulo_guia }}</strong>
+                                {% if evaluacion.guia.componente %}
+                                <br><small class="text-muted">{{ evaluacion.guia.componente }}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if evaluacion.estado == 'completada' %}bg-success
+                                {% elif evaluacion.estado == 'en_progreso' %}bg-warning
+                                {% else %}bg-secondary{% endif %}">
+                                {{ evaluacion.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                    <div class="progress-bar 
+                                        {% if evaluacion.porcentaje_cumplimiento >= 80 %}bg-success
+                                        {% elif evaluacion.porcentaje_cumplimiento >= 60 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                         style="width: {{ evaluacion.porcentaje_cumplimiento }}%">
+                                    </div>
+                                </div>
+                                <small class="text-muted">{{ evaluacion.porcentaje_cumplimiento|floatformat:0 }}%</small>
+                            </div>
+                        </td>
+                        <td>
+                            <small>{{ evaluacion.fecha_inicio|date:"d/m/Y H:i" }}</small>
+                        </td>
+                        <td>
+                            {% if evaluacion.fecha_completada %}
+                                <small>{{ evaluacion.fecha_completada|date:"d/m/Y H:i" }}</small>
+                            {% else %}
+                                <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if evaluacion.estado == 'completada' %}
+                                    <a href="{% url 'guia:resumen_evaluacion' evaluacion.pk %}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'guia:detalle' evaluacion.guia.pk %}" 
+                                       class="btn btn-outline-warning btn-sm">
+                                        <i class="fas fa-play"></i>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-clipboard fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">No tienes evaluaciones aún</h5>
+            <p class="text-muted">Comienza tu primera evaluación para ver tu progreso aquí.</p>
+            <a href="{% url 'guia:lista' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Comenzar Evaluación
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Paginación -->
+{% if is_paginated %}
+<nav aria-label="Paginación de evaluaciones" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">Primera</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+            </li>
+        {% endif %}
+
+        <li class="page-item active">
+            <span class="page-link">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+        </li>
+
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

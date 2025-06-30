@@ -1,0 +1,8 @@
+# Incluye las dependencias base
+-r base.in
+
+# Dependencias específicas de producción
+gunicorn
+psycopg2-binary
+whitenoise
+sentry-sdk

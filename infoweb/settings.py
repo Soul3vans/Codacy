@@ -45,12 +45,15 @@ THIRD_PARTY_APPS = [
     "django_select2",
     'crispy_forms',
     'crispy_bootstrap4',
+    # ... any other third-party apps ...
 ]
+
 LOCAL_APPS = [
-    'apps.dashboard.apps.DashboardConfig',
-    'apps.usuarios.apps.UsuariosConfig',
-    'apps.core.apps.CoreConfig',
-    'apps.guia.apps.GuiaConfig',
+    'apps.guia.apps.GuiaConfig',  # <--- THIS LINE IS CRITICAL
+    'apps.dashboard.apps.DashboardConfig', # Assuming this is another app
+    'apps.core.apps.CoreConfig', # Assuming this is another app
+    'apps.usuarios.apps.UsuariosConfig', # Assuming this is another app
+    # ... any other local apps ...
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

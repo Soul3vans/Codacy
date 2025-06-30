@@ -1,0 +1,11 @@
+# Incluye las dependencias base
+-r base.in
+
+# Herramientas de desarrollo
+django-debug-toolbar
+pytest
+pytest-django
+black
+flake8
+isort
+coverage

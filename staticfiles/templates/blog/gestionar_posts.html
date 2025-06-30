@@ -1,24 +1,15 @@
 {% extends 'base.html' %} {# Asume que tienes un base.html principal #}
 {% load static %}
 
-{% block title %}Gestionar Posts{% endblock %}
+{% block title %}Gestionar Publicaciones - GAU{% endblock %}
 
 {% block content %}
     <div class="container mt-4">
-        <h1 class="mb-4">Gestión de Posts</h1>
-
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
+        <h1 class="mb-4">Gestionar publicaciones</h1>
 
         <div class="d-flex justify-content-between align-items-center mb-3">
             <a href="{% url 'crear_post' %}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Crear Nuevo Post
+                <i class="fas fa-plus"></i> Crear Nueva Publicación
             </a>
 
             <div class="dropdown">

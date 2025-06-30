@@ -1,0 +1,357 @@
+{% extends 'guia/base_guias.html' %}
+{% load static %}
+
+{% block title %}Resumen de Evaluación - {{ block.super }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'guia:lista' %}">Guías</a></li>
+<li class="breadcrumb-item"><a href="{% url 'guia:mis_evaluaciones' %}">Mis Evaluaciones</a></li>
+<li class="breadcrumb-item active">Resumen</li>
+{% endblock %}
+
+{% block content %}
+<!-- Header del resumen -->
+<div class="card mb-4">
+    <div class="progress-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h3 class="mb-2">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Resumen de Evaluación
+                </h3>
+                <h5 class="mb-1">{{ evaluacion.guia.titulo_guia }}</h5>
+                <p class="mb-0 opacity-75">{{ evaluacion.guia.componente|default:"Sin componente especificado" }}</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="mb-2">
+                    <span class="badge 
+                        {% if evaluacion.porcentaje_cumplimiento >= 80 %}bg-success
+                        {% elif evaluacion.porcentaje_cumplimiento >= 60 %}bg-warning
+                        {% else %}bg-danger{% endif %} fs-6">
+                        {{ evaluacion.porcentaje_cumplimiento|floatformat:1 }}% Cumplimiento
+                    </span>
+                </div>
+                <div class="small">
+                    <i class="fas fa-calendar me-1"></i>
+                    Completada: {{ evaluacion.fecha_completada|date:"d/m/Y H:i" }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <nav>
+                    <a href="{% url 'guia:mis_evaluaciones' %}" class="btn btn-outline-secondary btn-sm me-2">
+                        <i class="fas fa-arrow-left me-1"></i>Volver a Evaluaciones
+                    </a>
+                    <a href="{% url 'guia:detalle' evaluacion.guia.pk %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye me-1"></i>Ver Guía
+                    </a>
+                </nav>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success btn-sm" onclick="descargarPDF()">
+                        <i class="fas fa-file-pdf me-1"></i>Descargar PDF
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="exportarExcel()">
+                        <i class="fas fa-file-excel me-1"></i>Excel
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i>Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas generales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x mb-2 opacity-75"></i>
+                <h4>{{ total_si }}</h4>
+                <p class="mb-0">Respuestas "Sí"</p>
+                <small class="opacity-75">{{ total_si|add:total_no|add:total_na|divisibleby:total_si|mul:100|floatformat:1 }}%</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-times-circle fa-2x mb-2 opacity-75"></i>
+                <h4>{{ total_no }}</h4>
+                <p class="mb-0">Respuestas "No"</p>
+                <small class="opacity-75">{% widthratio total_no total_si|add:total_no|add:total_na 100 %}%</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-minus-circle fa-2x mb-2 opacity-75"></i>
+                <h4>{{ total_na }}</h4>
+                <p class="mb-0">"No Aplica"</p>
+                <small class="opacity-75">{% widthratio total_na total_si|add:total_no|add:total_na 100 %}%</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-list-alt fa-2x mb-2 opacity-75"></i>
+                <h4>{{ total_si|add:total_no|add:total_na }}</h4>
+                <p class="mb-0">Total Preguntas</p>
+                <small class="opacity-75">100% Respondidas</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Análisis por categoría -->
+{% if stats_por_categoria %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Análisis por Categoría</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for categoria, stats in stats_por_categoria.items %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header category-header">
+                        <h6 class="mb-0">{{ categoria }}</h6>
+                        <small>{{ stats.total }} preguntas</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-success">Sí</span>
+                                <span class="text-success">{{ stats.si }} ({{ stats.porcentaje_si|floatformat:1 }}%)</span>
+                            </div>
+                            <div class="progress mb-2">
+                                <div class="progress-bar bg-success" style="width: {{ stats.porcentaje_si }}%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-danger">No</span>
+                                <span class="text-danger">{{ stats.no }} ({{ stats.porcentaje_no|floatformat:1 }}%)</span>
+                            </div>
+                            <div class="progress mb-2">
+                                <div class="progress-bar bg-danger" style="width: {{ stats.porcentaje_no }}%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-warning">N/A</span>
+                                <span class="text-warning">{{ stats.na }} ({{ stats.porcentaje_na|floatformat:1 }}%)</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-warning" style="width: {{ stats.porcentaje_na }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Observaciones generales -->
+{% if evaluacion.observaciones_generales %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-comment-alt me-2"></i>Observaciones Generales</h5>
+    </div>
+    <div class="card-body">
+        <div class="bg-light p-3 rounded">
+            {{ evaluacion.observaciones_generales|linebreaks }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Detalle de respuestas -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Detalle de Respuestas</h5>
+        <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-secondary" onclick="mostrarTodas()">Todas</button>
+            <button type="button" class="btn btn-outline-success" onclick="filtrarRespuestas('si')">Solo "Sí"</button>
+            <button type="button" class="btn btn-outline-danger" onclick="filtrarRespuestas('no')">Solo "No"</button>
+            <button type="button" class="btn btn-outline-warning" onclick="filtrarRespuestas('na')">Solo "N/A"</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th width="10%">#</th>
+                        <th width="50%">Pregunta</th>
+                        <th width="15%">Respuesta</th>
+                        <th width="25%">Fundamentación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for respuesta in respuestas %}
+                    <tr class="respuesta-row" data-respuesta="{{ respuesta.respuesta }}">
+                        <td>
+                            <span class="badge bg-secondary">{{ respuesta.numero_pregunta }}</span>
+                        </td>
+                        <td>
+                            {% for pregunta in evaluacion.guia.contenido_procesado.preguntas %}
+                                {% if pregunta.numero == respuesta.numero_pregunta %}
+                                    <div class="fw-bold mb-1">{{ pregunta.texto }}</div>
+                                    {% if pregunta.categoria %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-tag me-1"></i>{{ pregunta.categoria }}
+                                        </small>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if respuesta.respuesta == 'si' %}bg-success
+                                {% elif respuesta.respuesta == 'no' %}bg-danger
+                                {% else %}bg-warning{% endif %}">
+                                {% if respuesta.respuesta == 'si' %}
+                                    <i class="fas fa-check me-1"></i>Sí
+                                {% elif respuesta.respuesta == 'no' %}
+                                    <i class="fas fa-times me-1"></i>No
+                                {% else %}
+                                    <i class="fas fa-minus me-1"></i>N/A
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if respuesta.fundamento %}
+                                <div class="small">{{ respuesta.fundamento|truncatechars:100 }}</div>
+                                {% if respuesta.fundamento|length > 100 %}
+                                    <button type="button" class="btn btn-link btn-sm p-0" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#fundamentoModal" 
+                                            onclick="mostrarFundamento('{{ respuesta.fundamento|escapejs }}', {{ respuesta.numero_pregunta }})">
+                                        Ver completo
+                                    </button>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Sin fundamentación</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver fundamentación completa -->
+<div class="modal fade" id="fundamentoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Fundamentación - Pregunta <span id="numeroPregunta"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="fundamentoCompleto" class="bg-light p-3 rounded"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progress-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .category-header {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+    }
+    
+    @media print {
+        .btn, .btn-group, .card-footer, .modal {
+            display: none !important;
+        }
+        
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+        }
+        
+        .progress-header {
+            background: #667eea !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para filtrar respuestas
+    window.filtrarRespuestas = function(tipo) {
+        const filas = document.querySelectorAll('.respuesta-row');
+        filas.forEach(fila => {
+            if (fila.dataset.respuesta === tipo) {
+                fila.style.display = '';
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+    };
+    
+    // Función para mostrar todas las respuestas
+    window.mostrarTodas = function() {
+        const filas = document.querySelectorAll('.respuesta-row');
+        filas.forEach(fila => {
+            fila.style.display = '';
+        });
+    };
+    // Función para mostrar todas las respuestas
+    window.mostrarTodas = function() {
+        const filas = document.querySelectorAll('.respuesta-row');
+        filas.forEach(fila => {
+            fila.style.display = '';
+        });
+    };
+
+    // Función para mostrar la fundamentación completa en el modal
+    window.mostrarFundamento = function(fundamento, numeroPregunta) {
+        document.getElementById('numeroPregunta').innerText = numeroPregunta;
+        document.getElementById('fundamentoCompleto').innerText = fundamento;
+    };
+
+    // Placeholder functions for PDF and Excel export
+    window.descargarPDF = function() {
+        alert('La función de descarga de PDF aún no está implementada.');
+        // Implementar la lógica para descargar PDF aquí
+    };
+
+    window.exportarExcel = function() {
+        alert('La función de exportación a Excel aún no está implementada.');
+        // Implementar la lógica para exportar a Excel aquí
+    };
+});
+</script>
+{% endblock %}

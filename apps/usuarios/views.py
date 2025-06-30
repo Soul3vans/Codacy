@@ -1,4 +1,5 @@
 # VISTAS DE ADMINISTRACIÓN
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -26,79 +27,62 @@ logger = logging.getLogger(__name__)
 def home(request):
     return render(request, 'dashboard/index.html')
 
-# VISTA DE PERFIL CORREGIDA
 @login_required
 def perfil(request):
     """Vista para mostrar el perfil del usuario actual"""
     try:
-        # Asegurarse de que existe el perfil
-        perfil, created = Perfil.objects.get_or_create(user=request.user)
-        
-        # Obtener estadísticas del usuario
-        posts_count = 0
-        posts_publicados = 0
-        
-        # Verificar si el modelo Post existe antes de hacer consultas
-        try:
-            posts_count = request.user.post_set.count()
-            posts_publicados = request.user.post_set.filter(publicado=True).count()
-        except AttributeError:
-            # Si no existe la relación post_set, mantener en 0
-            pass
-        
-        context = {
-            'user': request.user,
-            'posts_count': posts_count,
-            'posts_publicados': posts_publicados,
-            'perfil': perfil,
-        }
-        return render(request, 'usuarios/perfil.html', context)
-        
-    except Exception as e:
-        logger.error(f"Error al cargar perfil de usuario {request.user.username}: {e}")
-        messages.error(request, 'Error al cargar el perfil. Por favor, intenta nuevamente.')
-        return redirect('home')
-
-    """
-    Vista para mostrar el perfil del usuario.
-    """
-    user_profile = request.user.perfil # Accede al objeto perfil
-    posts_count = Post.objects.filter(autor=request.user).count() if user_profile.puede_editar else 0 
-
+        # Intenta obtener el perfil. Si no existe, lanza una excepción.
+        perfil = Perfil.objects.get(user=request.user)
+    except Perfil.DoesNotExist:
+        # Si no existe, lo creamos.
+        perfil = Perfil.objects.create(user=request.user)
+    
+    # Obtener estadísticas del usuario (código que ya tienes)
+    # ...
+    
     context = {
-        'user_profile': user_profile, # Envia el objeto Perfil al template
-        'posts_count': posts_count,
+        'user_profile': perfil,
+        # ... otras variables de contexto
     }
     return render(request, 'usuarios/perfil.html', context)
 
 @login_required
 def actualizar_perfil(request):
     """Vista para actualizar la información del perfil del usuario"""
-    if request.method == 'POST':
-        # Pass instance of the user and user's profile to the forms
-        user_form = ActualizarPerfilForm(request.POST, user=request.user, instance=request.user)
-        
-        # Create a form for the Perfil model
-        # The 'instance' argument ensures the form is pre-filled with existing data and updates that instance
-        profile_form = PerfilForm(request.POST, instance=request.user.perfil) 
+    try:
+        # Asegurarse de obtener la instancia del perfil del usuario
+        user_profile = request.user.perfil
+    except Perfil.DoesNotExist:
+        # Si el perfil no existe por alguna razón, créalo
+        user_profile = Perfil.objects.create(user=request.user)
 
+    if request.method == 'POST':
+        user_form = ActualizarPerfilForm(request.POST, user=request.user, instance=request.user)
+        # Usa la instancia de perfil obtenida explícitamente
+        profile_form = PerfilForm(request.POST, request.FILES, instance=user_profile)
+        
         if user_form.is_valid() and profile_form.is_valid():
-            user_form.save()
-            profile_form.save()
+            with transaction.atomic():
+                user_form.save()
+                profile_form.save()
+            
             messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
+            
             return redirect('perfil')
         else:
-            messages.error(request, 'Hubo un error al actualizar tu perfil. Por favor, revisa los campos.')
+            # Si el formulario no es válido, los errores se mostrarán en la plantilla
+            messages.error(request, 'Hubo un error al actualizar el perfil. Por favor, revisa los campos.')
+            
     else:
         user_form = ActualizarPerfilForm(user=request.user, instance=request.user)
-        profile_form = PerfilForm(instance=request.user.perfil) #
-
+        # Usa la instancia de perfil obtenida explícitamente
+        profile_form = PerfilForm(instance=user_profile)
+    
     context = {
         'user_form': user_form,
         'profile_form': profile_form,
     }
     return render(request, 'usuarios/editar_perfil.html', context)
-
         
 
 @login_required
@@ -192,7 +176,7 @@ def asegurar_perfil_superuser(sender, instance, created, **kwargs):
 def login_view(request):
     """Vista personalizada para login"""
     if request.user.is_authenticated:
-        return redirect('home')
+        return redirect('inicio')
     
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -220,8 +204,8 @@ def login_view(request):
                     logger.info(f"Usuario {username} inició sesión correctamente")
                     messages.success(request, f'¡Bienvenido {user.first_name or user.username}!')
                     
-                    # Redirigir a la página solicitada o al home
-                    next_page = request.GET.get('next', 'home')
+                    # Redirigir a la página solicitada o al inicio
+                    next_page = request.GET.get('next', 'inicio')
                     return redirect(next_page)
                 else:
                     messages.error(request, 'Tu cuenta está desactivada.')
@@ -241,7 +225,7 @@ def logout_view(request):
     auth_logout(request)
     logger.info(f"Usuario {username} cerró sesión")
     messages.success(request, 'Has cerrado sesión correctamente.')
-    return redirect('home')
+    return redirect('inicio')
 
 def registro(request):
     """Vista para registro de nuevos usuarios"""
@@ -265,7 +249,7 @@ def registro(request):
                         login(request, user)
                         logger.info(f"Usuario {username} registrado y autenticado correctamente")
                         messages.success(request, f'¡Bienvenido {user.first_name}! Tu cuenta ha sido creada exitosamente.')
-                        return redirect('home')
+                        return redirect('inicio')
                     else:
                         logger.error(f"Error al autenticar usuario recién registrado: {username}")
                         messages.success(request, 'Tu cuenta ha sido creada exitosamente. Por favor, inicia sesión.')
@@ -364,7 +348,7 @@ def panel_admin(request):
     except Exception as e:
         logger.error(f"Error en panel admin: {e}")
         messages.error(request, 'Error al cargar el panel de administración.')
-        return redirect('home')
+        return redirect('inicio')
 
 @login_required
 @user_passes_test(es_admin)

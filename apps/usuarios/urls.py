@@ -15,7 +15,7 @@ urlpatterns = [
     
     # URLs para perfil de usuario
     path('perfil/', views.perfil, name='perfil'),
-    path('perfil/actualizar/', views.actualizar_perfil, name='actualizar_perfil'),
+    path('perfil/actualizar/', views.actualizar_perfil, name='editar_perfil'),
     path('perfil/cambiar-password/', views.cambiar_password, name='cambiar_password'),
 
  

@@ -1,21 +1,13 @@
+"""
+Modelos para la aplicación dashboard.
+Este módulo contiene los modelos de datos para el sistema de dashboard,
+"""
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 
 User = get_user_model()
-
-class Categoria(models.Model):
-    nombre = models.CharField(max_length=100, unique=True)
-    descripcion = models.TextField(blank=True)
-    activa = models.BooleanField(default=True)
-    
-    class Meta:
-        verbose_name = 'Categoría'
-        verbose_name_plural = 'Categorías'
-    
-    def __str__(self):
-        return self.nombre
 
 class Post(models.Model):
     ESTADO_CHOICES = [
@@ -27,7 +19,6 @@ class Post(models.Model):
     titulo = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
     autor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
-    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     contenido = models.TextField()
     resumen = models.TextField(max_length=300, help_text="Breve descripción del post")
     imagen_destacada = models.ImageField(upload_to='posts/', blank=True, null=True)
@@ -87,7 +78,7 @@ class Archivo(models.Model):
     fecha_subida = models.DateTimeField(auto_now_add=True)
     publico = models.BooleanField(default=False)
     es_formulario = models.BooleanField(default=False)
-    
+
     class Meta:
         ordering = ['-fecha_subida']
         verbose_name = 'Archivo'
@@ -95,6 +86,23 @@ class Archivo(models.Model):
     
     def __str__(self):
         return self.nombre
+
+    def save(self, *args, **kwargs):
+        # Si el archivo ya existe y se está actualizando, eliminar el archivo anterior
+        if self.pk:
+            try:
+                old = Archivo.objects.get(pk=self.pk)
+                if old.archivo and self.archivo != old.archivo:
+                    old.archivo.delete(save=False)
+            except Archivo.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+        
+    def get_nombre_archivo(self):
+    # Obtener el nombre completo del archivo incluyendo la extensión, pero sin la ruta
+        if self.archivo:
+            return self.archivo.name.split('/')[-1]
+        return ''
 
 class EnlaceInteres(models.Model):
     CATEGORIAS_CHOICES = [

@@ -1,13 +1,78 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Eliminar Publicación - Gau{% endblock %}
+{% block title %}Confirmar Eliminación - {{ post.titulo }}{% endblock %}
 
 {% block content %}
-<h1>Confirmar Eliminación</h1>
-<p>¿Estás seguro de que quieres eliminar el post "{{ post.titulo }}"?</p>
-<form method="post">
-    {% csrf_token %}
-    <button type="submit">Sí, eliminar</button>
-    <a href="{% url 'gestionar_posts' %}">Cancelar</a>
-</form>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirmar Eliminación
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>¡Atención!</strong> Esta acción no se puede deshacer.
+                    </div>
+
+                    <h5 class="mb-3">¿Estás seguro de que deseas eliminar esta publicación?</h5>
+
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <i class="fas fa-newspaper fa-4x text-secondary mb-3"></i>
+                        </div>
+                        <div class="col-md-8">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Título:</strong></td>
+                                    <td>{{ post.titulo }}</td>
+                                </tr>
+                                {% if post.descripcion %}
+                                <tr>
+                                    <td><strong>Descripción:</strong></td>
+                                    <td>{{ post.descripcion }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td><strong>Fecha de publicación:</strong></td>
+                                    <td>{{ post.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Publicado por:</strong></td>
+                                    <td>{{ post.autor.get_full_name|default:post.autor.username }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Contenido:</strong></td>
+                                    <td>{{ post.contenido|truncatewords:20 }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'gestionar_posts' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Cancelar
+                        </a>
+
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>
+                                Eliminar Publicación
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

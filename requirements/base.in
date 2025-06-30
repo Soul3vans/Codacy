@@ -1,0 +1,14 @@
+django>=4.2,<5.0
+pillow
+requests
+django-environ
+PyPDF2
+python-docx
+django-filter
+django-select2
+django-crispy-forms
+crispy-bootstrap4
+django-version-checks
+pip-tools
+symspellpy
+editdistpy

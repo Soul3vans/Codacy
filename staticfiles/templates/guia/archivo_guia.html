@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Guias{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-header">
+            Archivos de la Guía
+        </div>
+        <ul class="list-group list-group-flush">
+            {% if archivos %}
+                {% for archivo in archivos %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ archivo.nombre }}</strong> ({{ archivo.get_tipo_display }})
+                            <br>
+                            <small class="text-muted">Subido el: {{ archivo.fecha_subida|date:"d M Y H:i" }} por {{ archivo.subido_por.username }}</small>
+                            {% if archivo.descripcion %}
+                                <p class="mb-0 text-muted">{{ archivo.descripcion }}</p>
+                            {% endif %}
+                            <div class="mt-2">
+                                {% if archivo.publico %}
+                                    <span class="badge bg-success">Público</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Privado</span>
+                                {% endif %}
+                                {% if archivo.es_formulario %}
+                                    <span class="badge bg-info">Formulario</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div>
+                            <a href="{{ archivo.archivo.url }}" class="btn btn-info btn-sm" target="_blank">Ver</a>
+                            <a href="{{ archivo.archivo.url }}" class="btn btn-secondary btn-sm" download>Descargar</a>
+                            {% if user.perfil.es_admin or user.perfil.es_moderador %}
+                            <a href="{% url 'editar_archivo' pk=archivo.pk %}" class="btn btn-warning btn-sm">Editar</a>
+                            <a href="{% url 'eliminar_archivo' pk=archivo.pk %}" class="btn btn-danger btn-sm">Eliminar</a>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+            {% else %}
+                <li class="list-group-item">No hay archivos subidos aún.</li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

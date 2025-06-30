@@ -1,9 +1,9 @@
+
 from django.db import models
 from django.db.models import IntegerChoices, IntegerField
 from django.contrib.auth.models import User
 from django.urls import reverse 
 from django.utils import timezone
-from PIL import Image
 import os
 
 class CedeChoice(IntegerChoices):
@@ -27,6 +27,7 @@ class Perfil(models.Model):
     puede_editar = models.BooleanField(default=False, help_text='Si el usuario puede editar contenido')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     last_activity = models.DateTimeField(auto_now=True)
+    firma_digital = models.FileField(upload_to='firmas/', blank=True, null=True)
 
     class Meta:
         verbose_name = 'Perfil'

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Editar Archivo - GAU{% endblock %}
+{% block title %}Editar Archivo{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -29,6 +29,7 @@
                         <option value="imagen" {% if archivo.tipo == 'imagen' %}selected{% endif %}>Imagen</option>
                         <option value="documento" {% if archivo.tipo == 'documento' %}selected{% endif %}>Documento</option>
                         <option value="video" {% if archivo.tipo == 'video' %}selected{% endif %}>Video</option>
+                        <option value="pdf" {% if archivo.tipo == 'pdf' %}selected{% endif %}>PDF</option>
                         <option value="otro" {% if archivo.tipo == 'otro' %}selected{% endif %}>Otro</option>
                     </select>
                 </div>
@@ -39,6 +40,10 @@
                 <div class="mb-3 form-check">
                     <input type="checkbox" class="form-check-input" id="id_publico" name="publico" {% if archivo.publico %}checked{% endif %}>
                     <label class="form-check-label" for="id_publico">Público</label>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="id_es_formulario" name="es_formulario" {% if archivo.es_formulario %}checked{% endif %}>
+                    <label class="form-check-label" for="id_es_formulario">Es Formulario</label>
                 </div>
                 <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                 <a href="{% url 'gestionar_archivos' %}" class="btn btn-secondary">Cancelar</a>

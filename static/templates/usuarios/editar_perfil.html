@@ -24,11 +24,71 @@
                         {% csrf_token %}
                         
                         <h4 class="mt-4 mb-3">Información de Usuario</h4>
-                        {{ user_form.as_p }} {# Render fields from ActualizarPerfilForm #}
+                        {# Renderizado manual para user_form #}
+                        <div class="mb-3">
+                            <label for="{{ user_form.first_name.id_for_label }}" class="form-label">Nombre</label>
+                            {{ user_form.first_name }}
+                            {% if user_form.first_name.errors %}<div class="invalid-feedback d-block">{{ user_form.first_name.errors }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ user_form.last_name.id_for_label }}" class="form-label">Apellidos</label>
+                            {{ user_form.last_name }}
+                            {% if user_form.last_name.errors %}<div class="invalid-feedback d-block">{{ user_form.last_name.errors }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ user_form.email.id_for_label }}" class="form-label">Correo electrónico</label>
+                            {{ user_form.email }}
+                            {% if user_form.email.errors %}<div class="invalid-feedback d-block">{{ user_form.email.errors }}</div>{% endif %}
+                        </div>
 
                         <h4 class="mt-4 mb-3">Información Adicional del Perfil</h4>
-                        {{ profile_form.as_p }} {# Render fields from PerfilForm #}
+                        {# Renderizado manual para profile_form #}
+                        <div class="mb-3">
+                            <label for="{{ profile_form.telefono.id_for_label }}" class="form-label">Teléfono</label>
+                            {{ profile_form.telefono }}
+                            {% if profile_form.telefono.errors %}<div class="invalid-feedback d-block">{{ profile_form.telefono.errors }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ profile_form.cede.id_for_label }}" class="form-label">Sede Universitaria</label>
+                            {{ profile_form.cede }}
+                            {% if profile_form.cede.errors %}<div class="invalid-feedback d-block">{{ profile_form.cede.errors }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ profile_form.cargo.id_for_label }}" class="form-label">Cargo</label>
+                            {{ profile_form.cargo }}
+                            {% if profile_form.cargo.errors %}<div class="invalid-feedback d-block">{{ profile_form.cargo.errors }}</div>{% endif %}
+                        </div>
+                        
+                        {# Renderizado CORRECTO del checkbox #}
+                        <div class="mb-3 form-check">
+                            {{ profile_form.recibir_notificaciones }}
+                            <label class="form-check-label" for="{{ profile_form.recibir_notificaciones.id_for_label }}">
+                                Recibir notificaciones por email
+                            </label>
+                            {% if profile_form.recibir_notificaciones.errors %}<div class="invalid-feedback d-block">{{ profile_form.recibir_notificaciones.errors }}</div>{% endif %}
+                        </div>
 
+                        {# Renderizado CORRECTO de la firma digital con vista previa #}
+                        <div class="mb-3">
+                            <label for="{{ profile_form.firma_digital.id_for_label }}" class="form-label">
+                                Firma Digital
+                            </label>
+                            {% if profile_form.firma_digital.value %}
+                                <div class="mb-2">
+                                    <p>Firma actual:</p>
+                                    {# Asegurarse de que el archivo sea una imagen para mostrarlo #}
+                                    {% if profile_form.firma_digital.value.name|lower|slice:"-4:" in ".png.jpg.jpeg.gif" %}
+                                        <img src="{{ profile_form.firma_digital.value.url }}" alt="Firma Digital" class="img-thumbnail" style="max-height: 150px;">
+                                    {% else %}
+                                        <p>Archivo subido: <a href="{{ profile_form.firma_digital.value.url }}" target="_blank">{{ profile_form.firma_digital.value.name }}</a></p>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                            {{ profile_form.firma_digital }}
+                            {% if profile_form.firma_digital.help_text %}<div class="form-text">{{ profile_form.firma_digital.help_text }}</div>{% endif %}
+                            {% if profile_form.firma_digital.errors %}<div class="invalid-feedback d-block">{{ profile_form.firma_digital.errors }}</div>{% endif %}
+                        </div>
+                        
                         <button type="submit" class="btn btn-primary mt-3">Guardar Cambios</button>
                         <a href="{% url 'perfil' %}" class="btn btn-secondary mt-3">Cancelar</a>
                     </form>

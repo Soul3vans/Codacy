@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Gestionar Archivos - Gau{% endblock %}
+{% block title %}Gestionar Archivos{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -40,7 +40,7 @@
                     <input type="checkbox" class="form-check-input" id="id_publico" name="publico">
                     <label class="form-check-label" for="id_publico">Público</label>
                 </div>
-                <div class="mb-3 form-check">
+                <div class="mb-3 form-check" id="formularioCheckbox" style="display: none;">
                     <input type="checkbox" class="form-check-input" id="id_es_formulario" name="es_formulario">
                     <label class="form-check-label" for="id_es_formulario">Es Formulario</label>
                 </div>
@@ -92,4 +92,5 @@
 
 {% block extra_js %}
     <script src="{% static 'javascript/javascript.js' %}"></script>
+    <script src="{% static 'javascript/es_form_docx.js' %}"></script>
 {% endblock %}

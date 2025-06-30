@@ -1,0 +1,195 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Guías de Autocontrol{% endblock %}</title>
+    
+    {% block extra_css %}
+    <link href="{% static 'css/base_guias.css' %}" rel="stylesheet">
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/all.min.css' %}" rel="stylesheet">
+    {% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="position-sticky pt-3">
+            <div class="text-center mb-4 p-3">
+                <i class="fas fa-clipboard-check fa-3x mb-2"></i>
+                <h5 class="mb-0">Control Interno</h5>
+                <small class="opacity-75">Sistema de Autocontrol</small>
+            </div>
+            
+            <ul class="nav flex-column px-3">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'lista' %}active{% endif %}" 
+                       href="{% url 'guia:lista' %}">
+                        <i class="fas fa-list me-2"></i>
+                        Todas las Guías
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'mis_evaluaciones' %}active{% endif %}" 
+                       href="{% url 'guia:mis_evaluaciones' %}">
+                        <i class="fas fa-user-check me-2"></i>
+                        Mis Evaluaciones
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#reportesSubmenu">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Reportes
+                        <i class="fas fa-chevron-down ms-auto"></i>
+                    </a>
+                    <div class="collapse" id="reportesSubmenu">
+                        <ul class="nav flex-column ms-3">
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <i class="fas fa-chart-pie me-2"></i>
+                                    Por Componente
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <i class="fas fa-chart-line me-2"></i>
+                                    Histórico
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">
+                        <i class="fas fa-cog me-2"></i>
+                        Configuración
+                    </a>
+                </li>
+                <li class="nav-item mt-3">
+                    <hr class="sidebar-divider">
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">
+                        <i class="fas fa-question-circle me-2"></i>
+                        Ayuda
+                    </a>
+                </li>
+            </ul>
+            
+            <div class="mt-auto p-3">
+                <div class="text-center">
+                    <div class="d-flex align-items-center justify-content-center mb-2">
+                        <div class="rounded-circle bg-white bg-opacity-25 p-2 me-2">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="text-start">
+                            <div class="fw-bold">{{ user.get_full_name|default:user.username }}</div>
+                            <small class="opacity-75">{{ user.email }}</small>
+                        </div>
+                    </div>
+                    <a href="{% url 'admin:logout' %}" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-sign-out-alt me-1"></i>Cerrar Sesión
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main-content">
+        <!-- Top Navbar -->
+        <div class="top-navbar">
+            <div class="container-fluid px-4">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <button class="btn btn-outline-primary sidebar-toggle me-3" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        
+                        <nav aria-label="breadcrumb" class="d-inline-block">
+                            <ol class="breadcrumb mb-0">
+                                <li class="breadcrumb-item">
+                                    <a href="{% url 'guia:lista' %}">
+                                        <i class="fas fa-home"></i>
+                                    </a>
+                                </li>
+                                {% block breadcrumb %}
+                                <li class="breadcrumb-item active">Guías</li>
+                                {% endblock %}
+                            </ol>
+                        </nav>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-outline-secondary btn-sm me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#notificaciones">
+                            <i class="fas fa-bell"></i>
+                            <span class="badge bg-danger rounded-pill ms-1">3</span>
+                        </button>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i>{{ user.first_name|default:user.username }}
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-user-cog me-2"></i>Perfil</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Configuración</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'admin:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid px-4">
+            <!-- Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show fade-in" role="alert">
+                        <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}times-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            {% block content %}
+            {% endblock %}
+        </div>
+    </main>
+
+    <!-- Offcanvas para notificaciones -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="notificaciones">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Notificaciones</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="list-group list-group-flush">
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">Nueva guía disponible</h6>
+                        <small>hace 3 min</small>
+                    </div>
+                    <p class="mb-1">Se ha agregado una nueva guía de autocontrol.</p>
+                    <small>Sistema</small>
+                </div>
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">Evaluación completada</h6>
+                        <small>hace 1 hora</small>
+                    </div>
+                    <p class="mb-1">Has completado la evaluación "Ambiente de Control".</p>
+                    <small>Sistema</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    {% block extra_js %}
+    <script src="{% static 'javascript/base_guias.js' %}"></script>
+    <script src="{% static 'javascript/bootstrap.bundle.min.js' %}"></script>
+    {% endblock %}
+</body>
+</html>

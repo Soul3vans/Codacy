@@ -1,18 +1,17 @@
 from django import forms
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, Div, HTML
-from .models import Post, Comentario, Archivo, Categoria
+from crispy_forms.layout import Submit, Layout, Field, Div
+from .models import Post, Comentario, Archivo
 
 class PostForm(forms.ModelForm):
     class Meta:
         model = Post
         fields = [
-            'titulo', 'categoria', 'resumen', 'contenido', 
+            'titulo', 'resumen', 'contenido', 
             'imagen_destacada', 'estado', 'destacado', 'permitir_comentarios'
         ]
         widgets = {
             'titulo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Título del post'}),
-            'categoria': forms.Select(attrs={'class': 'form-control'}),
             'resumen': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Breve descripción...'}),
             'contenido': forms.Textarea(attrs={'class': 'form-control', 'rows': 10, 'placeholder': 'Contenido del post...'}),
             'imagen_destacada': forms.FileInput(attrs={'class': 'form-control-file'}),
@@ -116,13 +115,6 @@ class BusquedaForm(forms.Form):
         }),
         label='',
         required=False
-    )
-    categoria = forms.ModelChoiceField(
-        queryset=Categoria.objects.filter(activa=True),
-        empty_label="Todas las categorías",
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        required=False,
-        label='Categoría'
     )
     
     def __init__(self, *args, **kwargs):

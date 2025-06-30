@@ -10,11 +10,8 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                <h1 class="display-4 fw-bold mb-3">Bienvenido a nuestra página</h1>
+                <h1 class="display-5 fw-bold mb-3">Bienvenido a nuestra página</h1>
                 <p class="lead mb-4">Descubre contenido de calidad, noticias educativas y recursos para el aprendizaje. Un espacio seguro y confiable para toda la comunidad escolar.</p>
-                <a href="{% url 'lista_posts' %}" class="btn btn-light btn-lg">
-                    <i class="fas fa-newspaper me-2"></i>Ver Posts
-                </a>
             </div>
             <div class="col-lg-4 text-center">
                 <i class="fas fa-book-open fa-5x opacity-75"></i>
@@ -24,12 +21,59 @@
 </section>
 
 <div class="container py-5">
-    <!-- Posts Destacados -->
 
-    <!-- Posts Recientes -->
+    <!-- Enlaces de Interés -->
+    {% if enlaces_interes %}
     <section class="mb-5">
         <h2 class="text-center mb-4">
-            <i class="fas fa-clock me-2"></i>Posts Recientes
+            <i class="fas fa-link me-2"></i>Enlaces de Interés
+        </h2>
+        <div class="row">
+            {% for enlace in enlaces_interes %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card h-100 border-primary">
+                    {% if enlace.imagen %}
+                        <img src="{{ enlace.imagen.url }}" class="card-img-top" alt="{{ enlace.titulo }}" style="height: 200px; object-fit: cover;">
+                    {% else %}
+                        <div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 200px;">
+                            <i class="fas fa-external-link-alt fa-3x text-primary opacity-50"></i>
+                        </div>
+                    {% endif %}
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title text-primary">{{ enlace.titulo }}</h5>
+                        <p class="card-text flex-grow-1">{{ enlace.descripcion|truncatewords:20 }}</p>
+                        {% if enlace.categoria %}
+                            <span class="badge bg-primary mb-2 align-self-start">{{ enlace.categoria }}</span>
+                        {% endif %}
+                        <div class="mt-auto">
+                            <small class="text-muted">
+                                {% if enlace.fecha_creacion %}
+                                    <i class="fas fa-calendar me-1"></i>{{ enlace.fecha_creacion|date:"d M Y" }}
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="{{ enlace.url }}" class="btn btn-primary btn-sm" target="_blank" rel="noopener noreferrer">
+                            <i class="fas fa-external-link-alt me-1"></i>Visitar Enlace
+                        </a>
+                        {% if enlace.es_destacado %}
+                            <span class="badge bg-warning text-dark ms-2">
+                                <i class="fas fa-star me-1"></i>Destacado
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Publicaciones Recientes -->
+    <section class="mb-5">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-clock me-2"></i>Publicaciones Recientes
         </h2>
         <div class="row">
             {% for post in posts_recientes %}

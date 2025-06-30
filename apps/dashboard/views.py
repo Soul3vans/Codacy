@@ -4,8 +4,9 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib import messages
 from django.utils.text import slugify
-from .models import Post, Categoria, Comentario, Archivo, EnlaceInteres
-from .forms import PostForm, ComentarioForm, ArchivoForm
+from .models import Post, Archivo, EnlaceInteres
+from .forms import PostForm, ComentarioForm
+from django.http import JsonResponse
 
 def puede_editar(user):
     """Permite acceso a usuarios staff, superusuarios, o moderadores/admins de tu modelo Perfil."""
@@ -29,15 +30,15 @@ def puede_editar(user):
 def inicio(request):
     """Vista de la página de inicio"""
     
-    # Obtener publicaciones recientes (tu código existente)
+    # Obtener publicaciones recientes 
     posts_recientes = Post.objects.filter(
-        estado='publicado'  # o el valor correcto según tu modelo
-    ).order_by('-fecha_publicacion')[:6]  # Últimos 6 posts
+        estado='publicado'  
+    ).order_by('-fecha_publicacion')[:6] 
     
     # Obtener enlaces de interés activos
     enlaces_interes = EnlaceInteres.objects.filter(
         activo=True
-    ).order_by('-es_destacado', 'orden', '-fecha_creacion')[:6]  # Últimos 6 enlaces
+    ).order_by('-es_destacado', 'orden', '-fecha_creacion')[:6]
     
     context = {
         'posts_recientes': posts_recientes,
@@ -66,13 +67,10 @@ def lista_posts(request):
     page_number = request.GET.get('page')
     posts = paginator.get_page(page_number)
     
-    categorias = Categoria.objects.filter(activa=True)
     
     context = {
         'posts': posts,
-        'categorias': categorias,
         'query': query,
-        'categoria_seleccionada': categoria_id,
     }
     return render(request, 'blog/lista_posts.html', context)
 
@@ -181,19 +179,30 @@ def gestionar_archivos(request):
     archivos = Archivo.objects.all().order_by('-fecha_subida')
     
     if request.method == 'POST':
-        form = ArchivoForm(request.POST, request.FILES)
-        if form.is_valid():
-            archivo = form.save(commit=False)
+        try:
+            # Crear archivo manualmente
+            archivo = Archivo()
+            archivo.nombre = request.POST.get('nombre')
+            archivo.archivo = request.FILES.get('archivo')
+            archivo.tipo = request.POST.get('tipo')
+            archivo.descripcion = request.POST.get('descripcion', '')
+            archivo.publico = 'publico' in request.POST
+            archivo.es_formulario = 'es_formulario' in request.POST
             archivo.subido_por = request.user
-            archivo.save()
-            messages.success(request, 'Archivo subido correctamente.')
-            return redirect('gestionar_archivos')
-    else:
-        form = ArchivoForm()
+            
+            # Validar campos requeridos
+            if not archivo.nombre or not archivo.archivo or not archivo.tipo:
+                messages.error(request, 'Por favor completa todos los campos obligatorios.')
+            else:
+                archivo.save()
+                messages.success(request, 'Archivo subido correctamente.')
+                return redirect('gestionar_archivos')
+                
+        except Exception as e:
+            messages.error(request, f'Error al subir el archivo: {str(e)}')
     
     context = {
         'archivos': archivos,
-        'form': form,
     }
     return render(request, 'blog/gestionar_archivos.html', context)
 
@@ -222,14 +231,44 @@ def eliminar_archivo(request, pk):
 @user_passes_test(puede_editar)
 def editar_archivo(request, pk):
     archivo = get_object_or_404(Archivo, pk=pk)
+
+    # Store the original value of es_formulario
+    original_es_formulario = archivo.es_formulario
+
     if request.method == 'POST':
-        form = ArchivoForm(request.POST, request.FILES, instance=archivo)
-        if form.is_valid():
-            form.save()
-            return redirect('gestionar_archivos') # Redirect to your file management page
-    else:
-        form = ArchivoForm(instance=archivo)
-    return render(request, 'blog/editar_archivo.html', {'form': form, 'archivo': archivo})
+        try:
+            # Update archivo manually
+            archivo.nombre = request.POST.get('nombre')
+            archivo.tipo = request.POST.get('tipo')
+            archivo.descripcion = request.POST.get('descripcion', '')
+            archivo.publico = 'publico' in request.POST
+            # Get the new value for es_formulario
+            nuevo_es_formulario = 'es_formulario' in request.POST
+            archivo.es_formulario = nuevo_es_formulario
+
+            # List to hold fields that have changed
+            updated_fields = ['nombre', 'tipo', 'descripcion', 'publico', 'es_formulario']
+
+            # Only update the file if a new one was uploaded
+            if 'archivo' in request.FILES:
+                archivo.archivo = request.FILES['archivo']
+                updated_fields.append('archivo') # Add 'archivo' to updated_fields if changed
+
+            # If es_formulario state has changed, ensure it's in update_fields
+            if original_es_formulario != nuevo_es_formulario:
+                if 'es_formulario' not in updated_fields:
+                    updated_fields.append('es_formulario')
+
+            # Save the instance with specific updated fields
+            # This ensures `update_fields` is properly populated for the signal
+            archivo.save(update_fields=updated_fields) # Pass the list of updated fields
+
+            messages.success(request, 'Archivo actualizado correctamente.')
+            return redirect('gestionar_archivos')
+        except Exception as e:
+            messages.error(request, f'Error al actualizar el archivo: {str(e)}')
+
+    return render(request, 'blog/editar_archivo.html', {'archivo': archivo})
 
 @login_required
 def gestionar_enlaces(request):

@@ -3,6 +3,7 @@ from django.forms.widgets import Select
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from apps.core.forms import ChoiceField as EmptyChoiceField
+from django.core.exceptions import ValidationError
 from .models import Post, Archivo, Categoria, Comentario, Perfil, CedeChoice
 
 # FORMULARIO PERSONALIZADO DE REGISTRO
@@ -101,17 +102,19 @@ class PerfilForm(forms.ModelForm):
     """
     Formulario para actualizar los campos adicionales del perfil.
     """
+    cede = forms.ChoiceField(
+        choices=[('', "Seleccionar Sede Universitaria")] + list(CedeChoice.choices),
+        widget=Select(attrs={"class": "form-control form-select"}),
+        label="Sede Universitaria",
+        required=True,
+    )
     class Meta:
         model = Perfil
-        fields = ['telefono', 'cede', 'cargo', 'recibir_notificaciones']
+        fields = ['telefono', 'cede', 'cargo', 'recibir_notificaciones', 'firma_digital']
         widgets = {
             'telefono': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': '+1 234 567 8900'
-            }),
-            'cede': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Selecciona una sede'
             }),
             'cargo': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -120,16 +123,15 @@ class PerfilForm(forms.ModelForm):
             'recibir_notificaciones': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
+            'firma_digital': forms.FileInput(attrs={
+                'class': 'form-control'
+            }),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Add Bootstrap classes to all fields
-        for field_name, field in self.fields.items():
-            if isinstance(field.widget, forms.TextInput) or isinstance(field.widget, forms.EmailInput):
-                field.widget.attrs['class'] = 'form-control'
-            elif isinstance(field.widget, forms.CheckboxInput):
-                field.widget.attrs['class'] = 'form-check-input'
+        #for field in self.fields.values():
+        #self.fields['cede'].widget = Select(attrs={"class": "form-control form-select"})
     
 
 class PostForm(forms.ModelForm):
