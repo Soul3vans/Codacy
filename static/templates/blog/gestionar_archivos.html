@@ -59,7 +59,7 @@
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <div>
                             <strong>{{ archivo.nombre }}</strong> ({{ archivo.get_tipo_display }})
-                            <br>
+                            <br>{{ archivo.get_nombre_archivo }}<br>
                             <small class="text-muted">Subido el: {{ archivo.fecha_subida|date:"d M Y H:i" }} por {{ archivo.subido_por.username }}</small>
                             {% if archivo.descripcion %}
                                 <p class="mb-0 text-muted">{{ archivo.descripcion }}</p>

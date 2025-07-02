@@ -3,13 +3,8 @@ from apps.guia.models import GuiaAutocontrol, RespuestaGuia, EvaluacionGuia
 from django.db import connection
 from apps.dashboard.models import Archivo 
 import os
-import json
 import PyPDF2 
 import docx 
-from django.utils import timezone 
-from django.core.serializers.json import DjangoJSONEncoder
-import mimetypes
-from django.conf import settings
 import logging
 logger = logging.getLogger(__name__)
 

@@ -14,17 +14,9 @@ def crear_guia_desde_archivo(sender, instance, created, **kwargs):
     La Señal para crear GuiaAutocontrol automáticamente cuando se guarda un nuevo archivo es
     con es_formulario=True o cuando se actualiza un archivo existente con es_formulario=True.
     """
-    if instance.es_formulario: # Check if es_formulario is True
-        # Get the list of updated fields, if available
+    if instance.es_formulario:
         update_fields = kwargs.get('update_fields')
-        # Condition 1: It's a new Archivo and es_formulario is True
-        # Condition 2: It's an existing Archivo and es_formulario was updated to True
-        # For Condition 2, we need to ensure 'es_formulario' is in update_fields
-        # We also need to consider cases where es_formulario was already True and other fields were updated.
-
-        # If it's a new file, or if the 'es_formulario' field specifically changed
         if created or (update_fields and 'es_formulario' in update_fields):
-            # Check if a GuiaAutocontrol already exists for this Archivo
             if not GuiaAutocontrol.objects.filter(archivo=instance).exists():
                 try:
                     guia = GuiaAutocontrol.objects.create(

@@ -12,3 +12,4 @@ django-version-checks
 pip-tools
 symspellpy
 editdistpy
+reportlab

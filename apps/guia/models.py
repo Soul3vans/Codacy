@@ -2,12 +2,12 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from django.utils import timezone
-import re, json, logging
 from docx import Document
-from decimal import Decimal
-from django.conf import settings
 from apps.dashboard.models import Archivo
+import re
+import logging
+import PyPDF2
+import mimetypes
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -41,122 +41,66 @@ class GuiaAutocontrol(models.Model):
     def get_absolute_url(self):
         return reverse('guia:detalle', kwargs={'pk': self.pk})
 
-    # --- Utilidades de limpieza y serialización ---
-    def _sanitizar_para_json(self, texto):
-        """
-        Sanitiza texto para asegurar compatibilidad con JSON.
-        Elimina caracteres de control y normaliza espacios.
-        """
+    def _limpiar_texto(self, texto):
+        """Limpia el texto eliminando caracteres no deseados y normalizando espacios."""
         if not isinstance(texto, str):
             return str(texto)
-        texto_limpio = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]', '', texto)
-        texto_limpio = re.sub(r'\s+', ' ', texto_limpio)
+        texto = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]', '', texto)
+        texto = re.sub(r'\s+', ' ', texto)
         try:
-            texto_limpio = texto_limpio.encode('utf-8').decode('utf-8')
+            texto = texto.encode('utf-8').decode('utf-8')
         except UnicodeEncodeError:
-            texto_limpio = texto_limpio.encode('ascii', 'ignore').decode('ascii')
-        return texto_limpio.strip()
+            texto = texto.encode('ascii', 'ignore').decode('ascii')
+        return texto.strip()
 
-    def _procesar_lista_para_json(self, lista):
-        """
-        Procesa una lista para asegurar compatibilidad JSON.
-        """
-        lista_procesada = []
-        for item in lista:
-            if isinstance(item, str):
-                lista_procesada.append(self._sanitizar_para_json(item))
-            elif isinstance(item, (int, float, bool)):
-                lista_procesada.append(item)
-            elif isinstance(item, dict):
-                lista_procesada.append(self._procesar_dict_para_json(item))
-            elif isinstance(item, list):
-                lista_procesada.append(self._procesar_lista_para_json(item))
-            elif item is None:
-                lista_procesada.append(None)
-            else:
-                lista_procesada.append(self._sanitizar_para_json(str(item)))
-        return lista_procesada
-
-    def _procesar_dict_para_json(self, diccionario):
-        """
-        Procesa un diccionario para asegurar compatibilidad JSON.
-        """
-        diccionario_procesado = {}
-        for k, v in diccionario.items():
-            if isinstance(v, str):
-                diccionario_procesado[k] = self._sanitizar_para_json(v)
-            elif isinstance(v, (int, float, bool)):
-                diccionario_procesado[k] = v
-            elif isinstance(v, list):
-                diccionario_procesado[k] = self._procesar_lista_para_json(v)
-            elif isinstance(v, dict):
-                diccionario_procesado[k] = self._procesar_dict_para_json(v)
-            elif v is None:
-                diccionario_procesado[k] = None
-            else:
-                diccionario_procesado[k] = self._sanitizar_para_json(str(v))
-        return diccionario_procesado
+    def _procesar_estructura_para_json(self, estructura):
+        """Procesa una estructura (lista o diccionario) para asegurar compatibilidad JSON."""
+        if isinstance(estructura, list):
+            return [self._procesar_estructura_para_json(item) for item in estructura]
+        elif isinstance(estructura, dict):
+            return {k: self._procesar_estructura_para_json(v) for k, v in estructura.items()}
+        else:
+            return self._limpiar_texto(str(estructura))
 
     def _crear_contenido_procesado_seguro(self, error=None):
-        """
-        Helper para crear un diccionario seguro para contenido_procesado.
-        """
-        safe_content = {'error': error} if error else {}
-        return safe_content
-
-    def _clean_and_correct_text(self, text):
-        """
-        Limpieza básica y corrección de palabras.
-        """
-        text = re.sub(r'\n\s*\n', '\n', text)
-        text = re.sub(r'\s([,\.!\?;:])', r'\1', text)
-        text = re.sub(r'([([{])\s+', r'\1', text)
-        text = re.sub(r'\s([)\]}])', r'\1', text)
-        text = re.sub(r'(?<!•)\s+', ' ', text).strip()
-        return text
-
+        """Helper para crear un diccionario seguro para contenido_procesado."""
+        return {'error': error} if error else {}
+    
     def _parsear_tabla_docx(self, path):
-        def limpiar_texto(texto):
-            if not texto:
-                return ""
-            texto = re.sub(r"\s+", " ", texto)
-            texto = re.sub(r"\f|\n|Página \d+", "", texto)
-            return texto.strip()
-
         doc = Document(path)
         tablas_cuestionario = []
         componente_actual = None
         dentro_tabla_cuestionario = False
         componentes_procesados = set()
+        bloque = False
 
         # Inicializa un contador para las preguntas
         contador_preguntas = 0
 
         for tabla in doc.tables:
             for fila in tabla.rows:
-                celdas = [limpiar_texto(cell.text) if cell.text else "" for cell in fila.cells]
-
-                print(f"Celdas: {celdas}")  # Impresión de depuración
+                celdas = [self._limpiar_texto(cell.text) if cell.text else "" for cell in fila.cells]
+                #Descomentar para debug---> print(f"Celdas: {celdas}")  # Impresión de depuración
 
                 if not any(celdas):
-                    print("Fila vacía, continuando...")
+                    #Descomentar para debug---> print("Fila vacía, continuando...")
                     continue
 
                 if any("ASPECTOS A VERIFICAR" in c.upper() for c in celdas if c):
                     dentro_tabla_cuestionario = True
-                    print("Entrando a tabla de cuestionario")
+                    #Descomentar para debug---> print("Entrando a tabla de cuestionario")
                     continue
 
                 if not dentro_tabla_cuestionario:
-                    print("Fuera de tabla de cuestionario, continuando...")
+                    #Descomentar para debug---> print("Fuera de tabla de cuestionario, continuando...")
                     continue
 
                 if celdas and "Elaborado y aprobado" in celdas[0]:
-                    print("Tabla 'Elaborado y aprobado' encontrada, terminando...")
+                    #Descomentar para debug---> print("Tabla 'Elaborado y aprobado' encontrada, terminando...")
                     break
 
                 if len(celdas) >= 3 and len(set(c for c in celdas if c)) == 1:
-                    componente_texto = limpiar_texto(celdas[0])
+                    componente_texto = self._limpiar_texto(celdas[0])
                     if componente_texto and componente_texto not in componentes_procesados:
                         componente_actual = {
                             "componente_a_evaluar": componente_texto,
@@ -165,21 +109,21 @@ class GuiaAutocontrol(models.Model):
                         tablas_cuestionario.append(componente_actual)
                         componentes_procesados.add(componente_texto)
                         bloque = None
-                        print(f"Componente detectado: {componente_texto}")
+                        #Descomentar para debug---> print(f"Componente detectado: {componente_texto}")
                         continue
 
                 # Detectar encabezado
                 encabezado_detectado = False
                 for celda in celdas:
                     if celda and re.search(r":\s*$", celda):
-                        encabezado_texto = limpiar_texto(celda)
+                        encabezado_texto = self._limpiar_texto(celda)
                         if componente_actual:
                             bloque = {
                                 "encabezado": encabezado_texto,
                                 "preguntas": []
                             }
                             componente_actual["bloques"].append(bloque)
-                            print(f"Encabezado detectado y añadido: {encabezado_texto}")
+                            #Descomentar para debug--> print(f"Encabezado detectado y añadido: {encabezado_texto}")
                         encabezado_detectado = True
                         break  # Solo un encabezado por fila
 
@@ -203,10 +147,10 @@ class GuiaAutocontrol(models.Model):
                     if componente_actual and bloque:
                         contador_preguntas += 1
                         bloque["preguntas"].append({
-                            "id": contador_preguntas,  # Identificador único
-                            "numero_pregunta": numero_pregunta,
+                            "numero_pregunta": contador_preguntas,  # Identificador único
                             "texto": texto_pregunta
                         })
+                        #Descomentar para debug--> print(f"[Debug]:preguntas: {bloque}")
 
         return tablas_cuestionario
 
@@ -215,63 +159,51 @@ class GuiaAutocontrol(models.Model):
         Extrae y procesa el contenido del archivo asociado (PDF/DOCX).
         Limpia y estructura componente, propósito y cuestionario.
         """
-        import PyPDF2, mimetypes
-
-        logger = logging.getLogger(__name__)
-
         if not self.archivo or not self.archivo.archivo:
             raise ValueError("No hay un archivo asociado a esta Guía de Autocontrol.")
+
         file_path = self.archivo.archivo.path
         mime, _ = mimetypes.guess_type(file_path)
         full_text = ""
+
         try:
-            # --- Extracción de texto crudo ---
             if mime == 'application/pdf' or file_path.lower().endswith('.pdf'):
                 with open(file_path, 'rb') as f:
                     reader = PyPDF2.PdfReader(f)
-                    for page in reader.pages:
-                        page_text = page.extract_text()
-                        if page_text:
-                            full_text += page_text + "\n"
+                    full_text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
                 tablas_cuestionario = self._parsear_tabla_pdf(file_path)
             elif mime == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' or file_path.lower().endswith('.docx'):
                 doc = Document(file_path)
-                for para in doc.paragraphs:
-                    full_text += para.text + "\n"
+                full_text = "\n".join(para.text for para in doc.paragraphs)
                 for table in doc.tables:
                     for row in table.rows:
-                        row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                        row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
                         if row_text:
-                            full_text += " | ".join(row_text) + "\n"
+                            full_text += row_text + "\n"
                 tablas_cuestionario = self._parsear_tabla_docx(file_path)
             else:
                 raise ValueError("Tipo de archivo no soportado para extracción automática.")
 
-            # --- Procesamiento del texto extraído ---
-            # 1. Extraer Componente y Propósito
             comp_match = re.search(r'COMPONENTE\s+«?([A-ZÁÉÍÓÚÜÑ\s]+)»?', full_text, re.IGNORECASE)
             self.componente = comp_match.group(1).strip() if comp_match else ""
 
-            # Extraer propósito
-            text_content = re.sub(r'\n\d+\s*$', '', full_text, flags=re.MULTILINE)
-            prop_match = re.search(r'Propósito:\s*([\s\S]*?)(?=Principales fuentes de información para el autocontrol|$)', text_content, re.IGNORECASE)
+            prop_match = re.search(r'Propósito:\s*([\s\S]*?)(?=Principales fuentes de información para el autocontrol|$)', full_text, re.IGNORECASE)
             if prop_match:
                 proposito = prop_match.group(1).strip()
-                # Eliminar saltos de línea dentro de las oraciones
                 proposito = re.sub(r'(?<![.!?])\n(?!\n)', ' ', proposito)
                 proposito = re.sub(r'\s{2,}', ' ', proposito)
                 proposito = re.sub(r'\n\s*\n', '\n', proposito)
                 proposito = re.sub(r'(\s*\.\s*)+', '. ', proposito)
                 proposito = proposito.replace('•', '')
                 lineas = [l.strip() for l in proposito.split('\n') if l.strip() and not re.fullmatch(r'\d+', l.strip())]
-                parrafos, encabezados, puntos = [], [], []
                 buffer = ''
+                parrafos = []
                 for line in lineas:
                     line = re.sub(r'^[0-9]+[\s\.-·]*', '', line)
                     if re.match(r'^[A-ZÁÉÍÓÚÜÑ\s]+:$', line):
-                        encabezados.append(line)
+                        continue
                     elif re.match(r'^(-|\*|•|·|[a-zA-Z]\))', line) or line.startswith(''):
-                        puntos.append(line)
+                        continue
                     else:
                         if buffer:
                             buffer += ' '
@@ -283,24 +215,16 @@ class GuiaAutocontrol(models.Model):
                     parrafos.append(buffer.strip())
                 self.proposito = " ".join(parrafos)
 
-            # 3. Guardar resultados estructurados
             self.contenido_procesado = {
                 "componente": self.componente,
                 "proposito": self.proposito,
                 "tablas_cuestionario": tablas_cuestionario if tablas_cuestionario else []
             }
-            print(f"[DEBUG] Contenido procesado: {json.dumps(self.contenido_procesado, indent=2)}")
             self.save()
+
         except Exception as e:
             logger.error(f"Error al extraer contenido del archivo {self.archivo.nombre}: {e}")
             raise
-
-    @staticmethod
-    def imprimir_archivo_docx(ruta_archivo):
-        doc = Document(ruta_archivo)
-        for para in doc.paragraphs:
-            print(para.text)
-
 
 class EvaluacionGuia(models.Model):
     """
@@ -332,37 +256,41 @@ class EvaluacionGuia(models.Model):
 
     def calcular_porcentaje_cumplimiento(self):
         """
-        Calcula el porcentaje de preguntas respondidas para esta evaluación.
-        Asume que las respuestas están vinculadas a esta evaluación.
+        Calcula el porcentaje de cumplimiento basado en las respuestas del usuario.
         """
-        # Get all questions from the guide's processed content
-        all_questions_flat = []
+        #Descomentar para debug--> print(f"DEBUG: Entering EvaluacionGuia.calcular_porcentaje_cumplimiento for PK: {self.pk}")
+        if not self.guia:
+            #Descomentar para debug--> print(f"ERROR: EvaluacionGuia (PK: {self.pk}) tiene guia=None. No se puede calcular el cumplimiento.")
+            self.porcentaje_cumplimiento = 0.00
+            self.estado = 'no_iniciada'
+            self.save() # Ensure save is called
+            return
+        print(f"DEBUG: EvaluacionGuia.guia is present: {self.guia.pk}")
+
+        respuestas = RespuestaGuia.objects.filter(evaluacion=self)
+        
+        # Aplanar la lista de preguntas desde la estructura anidada de contenido_procesado
+        all_preguntas_from_guia = []
         if self.guia.contenido_procesado and 'tablas_cuestionario' in self.guia.contenido_procesado:
             for categoria in self.guia.contenido_procesado['tablas_cuestionario']:
                 for bloque in categoria.get('bloques', []):
-                    all_questions_flat.extend(bloque.get('preguntas', []))
-        total_preguntas = len(all_questions_flat)
-        if total_preguntas == 0:
-            self.porcentaje_cumplimiento = Decimal('0.00')
-            self.estado = 'no_iniciada'
+                    for pregunta in bloque.get('preguntas', []):
+                        all_preguntas_from_guia.append(pregunta)
+
+        total_actual_preguntas = len(all_preguntas_from_guia)
+
+        if total_actual_preguntas == 0:
+            self.porcentaje_cumplimiento = 0.00
+            self.estado = 'no_iniciada' # O 'en_progreso' si hay preguntas pero ninguna respondida
             self.save()
-            return Decimal('0.00')
-        answered_count = self.respuestas.filter(
-            respuesta__in=['si', 'no', 'na']
-        ).count()
-        porcentaje = (Decimal(answered_count) / Decimal(total_preguntas)) * Decimal('100.00')
-        self.porcentaje_cumplimiento = round(porcentaje, 2)
-        if self.porcentaje_cumplimiento == 100 and self.estado != 'completada':
-            self.estado = 'completada'
-            self.fecha_completado = timezone.now()
-        elif self.porcentaje_cumplimiento < 100 and self.estado != 'en_progreso':
-            self.estado = 'en_progreso'
-            self.fecha_completado = None
-        elif self.porcentaje_cumplimiento == 0 and self.estado != 'no_iniciada':
-            self.estado = 'no_iniciada'
-            self.fecha_completado = None
+            return
+
+        preguntas_respondidas = respuestas.filter(respuesta__in=['si', 'no', 'na']).count()
+        
+        porcentaje_completado = (preguntas_respondidas / total_actual_preguntas) * 100
+        self.porcentaje_cumplimiento = round(porcentaje_completado, 2) # Redondear a 2 decimales
+        self.estado = 'completada' if self.porcentaje_cumplimiento == 100 else 'en_progreso'
         self.save()
-        return self.porcentaje_cumplimiento
 
     def obtener_estadisticas_por_categoria(self):
         """
@@ -370,26 +298,30 @@ class EvaluacionGuia(models.Model):
         """
         if not self.guia.contenido_procesado.get('tablas_cuestionario'):
             return {}
+
         estadisticas = {}
         for categoria in self.guia.contenido_procesado['tablas_cuestionario']:
-            nombre_categoria = categoria['categoria']
+            nombre_categoria = categoria['componente_a_evaluar']
             preguntas_categoria = []
             for bloque in categoria.get('bloques', []):
                 preguntas_categoria.extend(bloque.get('preguntas', []))
-            numeros_preguntas = [p.get('numero_pregunta') for p in preguntas_categoria]
-            respuestas_categoria = self.respuestas.filter(
-                numero_pregunta__in=numeros_preguntas
-            )
+
+            # Usar 'id' para los números de pregunta si es lo que usas en tu JSON
+            numeros_preguntas = [p.get('id') for p in preguntas_categoria if p.get('id') is not None]
+            respuestas_categoria = self.respuestas.filter(numero_pregunta__in=numeros_preguntas)
+
             total = respuestas_categoria.count()
             si_count = respuestas_categoria.filter(respuesta='si').count()
             no_count = respuestas_categoria.filter(respuesta='no').count()
             na_count = respuestas_categoria.filter(respuesta='na').count()
+
             estadisticas[nombre_categoria] = {
                 'total': total,
                 'si': si_count,
                 'no': no_count,
                 'na': na_count,
             }
+
         return estadisticas
 
 class RespuestaGuia(models.Model):
@@ -398,12 +330,14 @@ class RespuestaGuia(models.Model):
     """
     evaluacion = models.ForeignKey(EvaluacionGuia, on_delete=models.CASCADE, related_name='respuestas')
     numero_pregunta = models.IntegerField(verbose_name='Número de Pregunta')
+
     RESPUESTA_CHOICES = [
         ('si', 'Sí'),
         ('no', 'No'),
         ('na', 'No Aplica'),
         (None, 'Sin Responder')
     ]
+
     respuesta = models.CharField(
         max_length=3,
         choices=RESPUESTA_CHOICES,
@@ -417,13 +351,30 @@ class RespuestaGuia(models.Model):
     class Meta:
         unique_together = ('evaluacion', 'numero_pregunta')
         verbose_name = 'Respuesta de Guía'
-        verbose_name_plural = 'Respuestas de Guías'
         ordering = ['evaluacion__guia__titulo_guia', 'numero_pregunta']
-
+ 
     def __str__(self):
-        return f"Resp. a P{self.numero_pregunta} ({self.evaluacion.guia.titulo_guia}) por {self.evaluacion.usuario.username}"
-
+        try:
+            guia_title = "Guía Desconocida"
+            usuario_username = "Usuario Desconocido"
+            if hasattr(self, 'evaluacion') and self.evaluacion:
+                if hasattr(self.evaluacion, 'guia') and self.evaluacion.guia:
+                    guia_title = self.evaluacion.guia.titulo_guia
+                if hasattr(self.evaluacion, 'usuario') and self.evaluacion.usuario:
+                    usuario_username = self.evaluacion.usuario.username
+            return f"Resp. a P{self.numero_pregunta} ({guia_title}) por {usuario_username}"
+        except Exception as e:
+            return f"Resp. a P{self.numero_pregunta} (Error al obtener info: {type(e).__name__})"
+ 
+ 
     def save(self, *args, **kwargs):
+        #Descomentar para debug--> print(f"DEBUG: Entering RespuestaGuia.save for PK: {self.pk if self.pk else 'New'}, Evaluacion ID: {self.evaluacion.pk if self.evaluacion else 'None'}")
         super().save(*args, **kwargs)
-        # Recalcula el porcentaje para la evaluación asociada después de guardar la respuesta
-        self.evaluacion.calcular_porcentaje_cumplimiento()
+        # Asegurarse de que la evaluación exista y sea válida antes de llamar acalcular_porcentaje_cumplimiento
+        if self.evaluacion:
+            #Descomentar para debug--> print(f"DEBUG: Calling calcular_porcentaje_cumplimiento for Evaluacion ID: {self.evaluacion.pk}")
+            self.evaluacion.calcular_porcentaje_cumplimiento()
+        else:
+            print(f"WARNING: RespuestaGuia (PK: {self.pk if self.pk else 'New'})has no associated evaluation when saving. Skipping percentage calculation.")
+
+ 

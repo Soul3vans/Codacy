@@ -4,16 +4,14 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from apps.core.forms import ChoiceField as EmptyChoiceField
 from django.core.exceptions import ValidationError
-from .models import Post, Archivo, Categoria, Comentario, Perfil, CedeChoice
+from .models import Archivo, Perfil, CedeChoice
 
-# FORMULARIO PERSONALIZADO DE REGISTRO
+
 class RegistroForm(UserCreationForm):
-     # Campos del Usuario
+    """Formulario de Registro de Usuario"""
     email = forms.EmailField(required=True, label='Correo Electrónico')
     first_name = forms.CharField(max_length=30, required=True, label='Nombre')
     last_name = forms.CharField(max_length=30, required=True, label='Apellidos')
-    
-    # Campos del Perfil
     telefono = forms.CharField(
         max_length=20,
         widget=forms.TextInput(attrs={
@@ -130,64 +128,9 @@ class PerfilForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        #for field in self.fields.values():
-        #self.fields['cede'].widget = Select(attrs={"class": "form-control form-select"})
-    
-
-class PostForm(forms.ModelForm):
-    """Formulario para crear y editar posts"""
-    
-    class Meta:
-        model = Post
-        fields = ['titulo', 'contenido', 'resumen', 'imagen_destacada', 
-                 'categorias', 'publicado', 'destacado', 'meta_descripcion', 'meta_keywords']
-        widgets = {
-            'titulo': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Título del post'
-            }),
-            'contenido': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 15,
-                'placeholder': 'Escribe tu contenido aquí...'
-            }),
-            'resumen': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Resumen breve del post (opcional)',
-                'maxlength': 300
-            }),
-            'imagen_destacada': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': 'image/*'
-            }),
-            'categorias': forms.CheckboxSelectMultiple(attrs={
-                'class': 'form-check-input'
-            }),
-            'publicado': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            }),
-            'destacado': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            }),
-            'meta_descripcion': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Descripción para SEO (opcional)',
-                'maxlength': 160
-            }),
-            'meta_keywords': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Palabras clave separadas por comas'
-            }),
-        }
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['categorias'].queryset = Categoria.objects.filter(activa=True)
 
 class ArchivoForm(forms.ModelForm):
-    """Formulario para subir archivos"""
-    
+    """Formulario para subir archivos"""  
     class Meta:
         model = Archivo
         fields = ['archivo', 'descripcion', 'publico']
@@ -204,68 +147,6 @@ class ArchivoForm(forms.ModelForm):
                 'class': 'form-check-input'
             }),
         }
-
-class CategoriaForm(forms.ModelForm):
-    """Formulario para gestionar categorías"""
-    
-    class Meta:
-        model = Categoria
-        fields = ['nombre', 'descripcion', 'color', 'icono', 'activa']
-        widgets = {
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Nombre de la categoría'
-            }),
-            'descripcion': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Descripción de la categoría'
-            }),
-            'color': forms.TextInput(attrs={
-                'class': 'form-control',
-                'type': 'color'
-            }),
-            'icono': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'fas fa-tag (clase de FontAwesome)'
-            }),
-            'activa': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            }),
-        }
-
-class ComentarioForm(forms.ModelForm):
-    """Formulario para comentarios"""
-    
-    class Meta:
-        model = Comentario
-        fields = ['contenido']
-        widgets = {
-            'contenido': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'Escribe tu comentario...'
-            }),
-        }
-
-class BuscarForm(forms.Form):
-    """Formulario para búsquedas"""
-    q = forms.CharField(
-        max_length=255,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Buscar posts, usuarios...',
-            'autocomplete': 'off'
-        })
-    )
-    categoria = forms.ModelChoiceField(
-        queryset=Categoria.objects.filter(activa=True),
-        required=False,
-        empty_label="Todas las categorías",
-        widget=forms.Select(attrs={
-            'class': 'form-select'
-        })
-    )
 
 class ActualizarPerfilForm(forms.ModelForm):
     """

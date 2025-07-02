@@ -10,9 +10,7 @@ class UpdateLastActivityMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Procesar la solicitud
         response = self.get_response(request)
-        
         # Actualizar last_activity si el usuario está autenticado
         if request.user.is_authenticated:
             try:

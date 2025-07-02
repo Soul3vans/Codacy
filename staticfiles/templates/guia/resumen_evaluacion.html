@@ -206,7 +206,7 @@
                             <span class="badge bg-secondary">{{ respuesta.numero_pregunta }}</span>
                         </td>
                         <td>
-                            {% for pregunta in evaluacion.guia.contenido_procesado.preguntas %}
+                            {% for pregunta in respuesta.evaluacion.guia.contenido_procesado.preguntas %}
                                 {% if pregunta.numero == respuesta.numero_pregunta %}
                                     <div class="fw-bold mb-1">{{ pregunta.texto }}</div>
                                     {% if pregunta.categoria %}

@@ -6,10 +6,9 @@ from apps.guia.models import GuiaAutocontrol, RespuestaGuia, EvaluacionGuia
 from apps.dashboard.models import Archivo
 from django.db import connection
 import os
-import json
 import PyPDF2
 import docx
-from django.core.serializers.json import DjangoJSONEncoder
+
 
 class Command(BaseCommand):
     help = 'Diagnóstico completo del sistema de guías'

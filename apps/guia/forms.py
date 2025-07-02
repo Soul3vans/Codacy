@@ -1,11 +1,27 @@
-# guia/forms.py
+"""FORMULARIOS"""
 from django import forms
 from .models import RespuestaGuia, EvaluacionGuia
 
+# Constantes para opciones de respuesta
+OPCIONES_RESPUESTA = [
+    ('si', 'Sí'),
+    ('no', 'No'),
+    ('na', 'No Aplica'),
+]
+
+# Constantes para opciones de estado
+ESTADO_CHOICES = [
+    ('', 'Todos los estados'),
+    ('en_progreso', 'En Progreso'),
+    ('completada', 'Completada'),
+    ('revisada', 'Revisada'),
+    # Asegúrate de que 'aprobada' exista en tu modelo
+    ('aprobada', 'Aprobada'),
+]
 
 class RespuestaGuiaForm(forms.ModelForm):
     """
-    Formulario para responder preguntas de la guía
+    Formulario para responder preguntas de la guía.
     """
     class Meta:
         model = RespuestaGuia
@@ -21,26 +37,24 @@ class RespuestaGuiaForm(forms.ModelForm):
             })
         }
 
-
 class EvaluacionGuiaForm(forms.ModelForm):
     """
-    Formulario para completar la evaluación
+    Formulario para completar la evaluación.
     """
     class Meta:
         model = EvaluacionGuia
-        fields = ['comentarios'] # <--- CORRECTED: Changed from 'observaciones_generales' to 'comentarios'
+        fields = ['comentarios']
         widgets = {
-            'comentarios': forms.Textarea(attrs={ # <--- CORRECTED: Changed from 'observaciones_generales' to 'comentarios'
+            'comentarios': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 5,
                 'placeholder': 'Escriba aquí sus observaciones generales sobre la evaluación...'
             })
         }
 
-
 class BusquedaGuiaForm(forms.Form):
     """
-    Formulario para buscar guías
+    Formulario para buscar guías.
     """
     busqueda = forms.CharField(
         max_length=200,
@@ -50,7 +64,6 @@ class BusquedaGuiaForm(forms.Form):
             'placeholder': 'Buscar por nombre o componente...'
         })
     )
-    
     componente = forms.CharField(
         max_length=200,
         required=False,
@@ -60,19 +73,10 @@ class BusquedaGuiaForm(forms.Form):
         })
     )
 
-
 class FiltroEvaluacionForm(forms.Form):
     """
-    Formulario para filtrar evaluaciones
+    Formulario para filtrar evaluaciones.
     """
-    ESTADO_CHOICES = [
-        ('', 'Todos los estados'),
-        ('en_progreso', 'En Progreso'),
-        ('completada', 'Completada'),
-        ('revisada', 'Revisada'),
-        ('aprobada', 'Aprobada'), # This choice might not exist in your model, verify it.
-    ]
-    
     estado = forms.ChoiceField(
         choices=ESTADO_CHOICES,
         required=False,
@@ -80,7 +84,6 @@ class FiltroEvaluacionForm(forms.Form):
             'class': 'form-select'
         })
     )
-    
     fecha_desde = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={
@@ -88,7 +91,6 @@ class FiltroEvaluacionForm(forms.Form):
             'type': 'date'
         })
     )
-    
     fecha_hasta = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={
@@ -97,17 +99,10 @@ class FiltroEvaluacionForm(forms.Form):
         })
     )
 
-
 class RespuestaRapidaForm(forms.Form):
     """
-    Formulario para respuesta rápida por AJAX
+    Formulario para respuesta rápida por AJAX.
     """
-    OPCIONES_RESPUESTA = [
-        ('si', 'Sí'),
-        ('no', 'No'),
-        ('na', 'No Aplica'),
-    ]
-    
     numero_pregunta = forms.IntegerField(widget=forms.HiddenInput())
     fundamentacion = forms.CharField(
         required=False,
@@ -123,3 +118,14 @@ class RespuestaRapidaForm(forms.Form):
             'class': 'form-check-input respuesta-radio'
         })
     )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        respuesta = cleaned_data.get('respuesta')
+        fundamentacion = cleaned_data.get('fundamentacion')
+
+        # Ejemplo de validación personalizada
+        if respuesta == 'no' and not fundamentacion:
+            raise forms.ValidationError("La fundamentación es obligatoria cuando la respuesta es 'No'.")
+
+        return cleaned_data

@@ -117,7 +117,7 @@
                     <p class="text-muted mb-2">{{ evaluaciones_bajo_rendimiento.count }} evaluación(es) con menos del 60% de cumplimiento</p>
                     {% for eval in evaluaciones_bajo_rendimiento|slice:":3" %}
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <small>{{ eval.guia.titulo_guia|truncatechars:25 }}</small>
+                        <small>{{ evaluacion.guia.titulo_guia|truncatechars:25 }}</small>
                         <span class="badge bg-danger">{{ eval.porcentaje_cumplimiento|floatformat:0 }}%</span>
                     </div>
                     {% endfor %}

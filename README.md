@@ -6,12 +6,13 @@ git clone https://github.com/Soul3vans/Codacy.git
 **(1)**
 Luego tienes que crear un entorno virtual
 python -m venv venv
-source venv/bin/activate
+Para Linux: source venv/bin/activate
+Para windows: .\venv\Scripts\activate
 
 **(2)**
 Luego tienes que instalar unas cositas
 pip install pip-compile-multi
-pip install -r requirements/base.txt
+pip install -r requirements/master.txt
 
 **(3)**
 Crea y actualiza las tablas y haste suprusuario

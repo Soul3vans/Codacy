@@ -23,7 +23,6 @@
             </div>
             {% endfor %}
             {% endif %}
-            <!-- Información estructurada de la guía -->
             <div class="mb-4">
                 <h3 class="mb-2">Componente</h3>
                 <div class="alert alert-info">{{ guia.componente }}</div>
@@ -33,11 +32,11 @@
                 </div>
             </div>
             {% if preguntas_por_categoria %}
-            <form method="post" id="form-todas-preguntas">
+            {# Añadido data-guia-pk para que JavaScript pueda obtener el ID de la guía #}
+            <form method="post" id="guia-form" data-pdf-url="{% url 'guia:generar_pdf_guia' guia.pk %}" data-guia-pk="{{ guia.pk }}">
                 {% csrf_token %}
                 {% for categoria_data in preguntas_por_categoria %}
                 <div class="question-section shadow-sm mb-4">
-                    <!-- Componente de la pregunta centrado y en mayúsculas -->
                     <div class="text-center fw-bold mb-2" style="text-transform: uppercase;">
                         {{ categoria_data.componente_a_evaluar }}
                     </div>
@@ -48,38 +47,32 @@
                     <div class="block-header fw-bold text-primary mb-2">{{ bloque.encabezado }}</div>
                     <div class="question-list">
                         {% for pregunta in bloque.preguntas %}
-                        <div class="question-item" id="pregunta-{{ pregunta.id }}">
-                            <div class="question-content">
-                                <p class="mb-2">{{ pregunta.id }} {{ pregunta.texto }}</p>
-                                <input type="hidden" name="numero_pregunta_{{ pregunta.id }}" value="{{ pregunta.id }}">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="respuesta_{{ pregunta.id }}"
-                                               id="respuesta-si-{{ pregunta.id }}" value="si"
-                                               data-pregunta-id="{{ pregunta.id }}"
-                                               {% if pregunta.user_respuesta == 'si' %}checked{% endif %}>
-                                        <label class="form-check-label" for="respuesta-si-{{ pregunta.id }}">Sí</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="respuesta_{{ pregunta.id }}"
-                                               id="respuesta-no-{{ pregunta.id }}" value="no"
-                                               data-pregunta-id="{{ pregunta.id }}"
-                                               {% if pregunta.user_respuesta == 'no' %}checked{% endif %}>
-                                        <label class="form-check-label" for="respuesta-no-{{ pregunta.id }}">No</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="respuesta_{{ pregunta.id }}"
-                                               id="respuesta-na-{{ pregunta.id }}" value="na"
-                                               data-pregunta-id="{{ pregunta.id }}"
-                                               {% if pregunta.user_respuesta == 'na' %}checked{% endif %}>
-                                        <label class="form-check-label" for="respuesta-na-{{ pregunta.id }}">No se aplica</label>
-                                    </div>
-                                </div>
-                                <div class="mb-2" {% if pregunta.user_respuesta != 'no' %}style="display:none"{% endif %}
-                                     id="fundamentacion-box-{{ pregunta.id }}">
-                                    <textarea class="form-control form-control-sm" name="fundamentacion_{{ pregunta.id }}"
-                                              placeholder="Fundamentación">{{ pregunta.user_fundamentacion|default_if_none:"" }}</textarea>
-                                </div>
+                        <div class="question-item" data-question-id="{{ pregunta.numero_pregunta }}">
+                            <label>{{ pregunta.numero_pregunta }}. {{ pregunta.texto }}</label>
+                        </br>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="respuesta_{{ pregunta.numero_pregunta }}"
+                                    id="respuesta_{{ pregunta.numero_pregunta }}_si" value="si" data-pregunta-id="{{ pregunta.numero_pregunta }}"
+                                    {% if pregunta.user_respuesta == 'si' %}checked{% endif %}>
+                                <label class="form-check-label" for="respuesta_{{ pregunta.numero_pregunta }}_si">Sí</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="respuesta_{{ pregunta.numero_pregunta }}"
+                                    id="respuesta_{{ pregunta.numero_pregunta }}_no" value="no" data-pregunta-id="{{ pregunta.numero_pregunta }}"
+                                    {% if pregunta.user_respuesta == 'no' %}checked{% endif %}>
+                                <label class="form-check-label" for="respuesta_{{ pregunta.numero_pregunta }}_no">No</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="respuesta_{{ pregunta.numero_pregunta }}"
+                                    id="respuesta_{{ pregunta.numero_pregunta }}_na" value="na" data-pregunta-id="{{ pregunta.numero_pregunta }}"
+                                    {% if pregunta.user_respuesta == 'na' %}checked{% endif %}>
+                                <label class="form-check-label" for="respuesta_{{ pregunta.numero_pregunta }}_na">N/A</label>
+                            </div>
+                            <div class="mt-2" id="fundamentacion-box-{{ pregunta.numero_pregunta }}"
+                                style="{% if pregunta.user_respuesta == 'no' %}display: block;{% else %}display: none;{% endif %}">
+                                <label for="fundamentacion_{{ pregunta.numero_pregunta }}" class="form-label">Fundamentación:</label>
+                                <textarea class="form-control" id="fundamentacion_{{ pregunta.numero_pregunta }}"
+                                        name="fundamentacion_{{ pregunta.numero_pregunta }}" rows="3">{{ pregunta.user_fundamentacion|default_if_none:"" }}</textarea>
                             </div>
                             <div class="completion-indicator {% if pregunta.user_respuesta %}completed{% endif %}">
                                 {% if pregunta.user_respuesta %}<i class="fas fa-check"></i>{% endif %}
@@ -91,7 +84,7 @@
                 </div>
                 {% endfor %}
                 <div class="text-center mt-4">
-                    <button type="submit" class="btn btn-primary btn-lg">Guardar todas las respuestas</button>
+                    <button type="button" id="guardar-todo-btn" class="btn btn-primary btn-lg">Guardar respuestas</button>
                 </div>
             </form>
             {% else %}
@@ -108,8 +101,28 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="completionModal" tabindex="-1" aria-labelledby="completionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="completionModalLabel">¡Formulario Completado!</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Todas las preguntas han sido respondidas. ¿Qué deseas hacer ahora(?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="reviewAnswersBtn">Revisar respuestas</button>
+                <button type="button" class="btn btn-primary" id="finishFormBtn">Terminar formulario y generar PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'javascript/detalles_guia.js' %}"></script>
+<script src="{% static 'javascript/detalles_guia.js' %}" defer></script>
+<script src="{% static 'javascript/bootstrap.bundle.min.js' %}" defer></script>
 {% endblock %}
