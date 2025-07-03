@@ -58,6 +58,9 @@
                                 <li><a class="dropdown-item" href="{% url 'perfil' %}">
                                     <i class="fas fa-user-circle me-2"></i>Mi Perfil
                                 </a></li>
+                                <li><a class="dropdown-item" href="{% url 'guia:mis_evaluaciones' %}">
+                                    <i class="fas fa-user-circle me-2"></i>Mis Evaluaciones
+                                </a></li>
                                 
                                 {% if user.perfil.puede_editar %}
                                     <li><a class="dropdown-item" href="{% url 'gestionar_archivos' %}">
@@ -140,15 +143,6 @@
     <!-- Bootstrap JS -->
     <script src="{% static 'javascript/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'javascript/javascript.js' %}"></script>
-
-    <script>
-        function cerrarSesion() {
-            document.getElementById('logout-form').submit();
-        }
-    </script>
-    
-    {% block extra_js %}
-    
-    {% endblock %}
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

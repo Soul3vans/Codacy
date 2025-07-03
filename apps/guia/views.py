@@ -15,9 +15,12 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from .models import GuiaAutocontrol, RespuestaGuia, EvaluacionGuia
 from apps.dashboard.models import Archivo
+from .tasks import generar_pdf_guia_async
 import io
 import json
 import logging
+import os
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +70,7 @@ def detalle_guia(request, pk):
         try:
             # Intentar cargar los datos JSON del cuerpo de la solicitud
             data = json.loads(request.body)
-            numero_pregunta = data.get('id')
+            numero_pregunta = data.get('numero_pregunta')  # <-- CORREGIDO
             respuesta = data.get('respuesta')
             fundamentacion = data.get('fundamentacion', '')
             
@@ -82,16 +85,15 @@ def detalle_guia(request, pk):
                 defaults={'estado': 'en_progreso'}
             )
             # Guardar o actualizar la RespuestaGuia
-            # El campo 'fecha_respuesta' con auto_now=True se actualizará automáticamente
             respuesta_guia, created = RespuestaGuia.objects.update_or_create(
-                evaluacion=evaluacion,
+                guia=guia,
+                usuario=request.user,
                 numero_pregunta=numero_pregunta,
                 defaults={
-                    'respuesta': respuesta if respuesta else None, # Guardar None si la respuesta está vacía
+                    'respuesta': respuesta if respuesta else None,
                     'fundamentacion': fundamentacion
                 }
             )
-            print(f"Respuesta guardada: {respuesta_guia}")
             # Recalcular el progreso y actualizar la evaluación después de guardar la respuesta
             all_preguntas_flat = []
             if guia.contenido_procesado and 'tablas_cuestionario' in guia.contenido_procesado:
@@ -99,15 +101,13 @@ def detalle_guia(request, pk):
                     for bloque in categoria.get('bloques', []):
                         for pregunta in bloque.get('preguntas', []):
                             all_preguntas_flat.append(pregunta)
-            # Re-obtener las respuestas actualizadas del usuario para este cálculo
             respuestas_usuario_actualizadas = RespuestaGuia.objects.filter(
-                evaluacion__guia=guia,
-                evaluacion__usuario=request.user
+                guia=guia,
+                usuario=request.user
             ).values('numero_pregunta', 'respuesta')
             respuestas_dict_actualizadas = {r['numero_pregunta']: r for r in respuestas_usuario_actualizadas}
             total_preguntas = len(all_preguntas_flat)
-            # Asegúrate de usar 'id' para la clave de la pregunta si es lo que usas en tu JSON
-            preguntas_respondidas = sum(1 for p in all_preguntas_flat if respuestas_dict_actualizadas.get(p.get('id', p.get('numero')), {}).get('respuesta') in ['si', 'no', 'na'])
+            preguntas_respondidas = sum(1 for p in all_preguntas_flat if respuestas_dict_actualizadas.get(p.get('numero_pregunta'), {}).get('respuesta') in ['si', 'no', 'na'])
             porcentaje_completado = round((preguntas_respondidas / total_preguntas * 100)) if total_preguntas > 0 else 0
             evaluacion.estado = 'completada' if porcentaje_completado == 100 else 'en_progreso'
             evaluacion.porcentaje_cumplimiento = porcentaje_completado
@@ -130,8 +130,8 @@ def detalle_guia(request, pk):
     all_preguntas_flat = []
     if guia.contenido_procesado and 'tablas_cuestionario' in guia.contenido_procesado:
         respuestas_usuario = RespuestaGuia.objects.filter(
-            evaluacion__guia=guia,
-            evaluacion__usuario=request.user
+            guia=guia,
+            usuario=request.user
         ).values('numero_pregunta', 'respuesta', 'fundamentacion')
         respuestas_dict = {r['numero_pregunta']: r for r in respuestas_usuario}
         for categoria in guia.contenido_procesado['tablas_cuestionario']:
@@ -143,7 +143,7 @@ def detalle_guia(request, pk):
             for bloque in categoria.get('bloques', []):
                 blq = {'encabezado': bloque.get('encabezado', ''), 'preguntas': []}
                 for pregunta in bloque.get('preguntas', []):
-                    num = pregunta.get('id') # Usar 'id' como clave para la pregunta
+                    num = pregunta.get('numero_pregunta')  # <-- CORREGIDO
                     pregunta_copy = pregunta.copy()
                     if num is not None and num in respuestas_dict:
                         pregunta_copy.update({
@@ -156,22 +156,18 @@ def detalle_guia(request, pk):
                             'user_fundamentacion': None
                         })
                     blq['preguntas'].append(pregunta_copy)
-                    # Añadir a la lista plana para el conteo total
                     all_preguntas_flat.append(pregunta_copy)
                 cat['bloques'].append(blq)
             preguntas_por_categoria.append(cat)
 
     total_preguntas = len(all_preguntas_flat)
-    # Es crucial que aquí también uses 'id' o la clave correcta para buscar en respuestas_dict
     preguntas_respondidas = sum(1 for p in all_preguntas_flat if p.get('user_respuesta') in ['si', 'no', 'na'])
     porcentaje_completado = round((preguntas_respondidas / total_preguntas * 100)) if total_preguntas > 0 else 0
-    # Asegurarse de que la evaluación siempre se obtiene/crea para el contexto
     evaluacion, created = EvaluacionGuia.objects.get_or_create(
         guia=guia,
         usuario=request.user,
         defaults={'estado': 'en_progreso'}
     )
-    # Actualizar estado y porcentaje incluso en la solicitud GET si se cargó la página
     evaluacion.estado = 'completada' if porcentaje_completado == 100 else 'en_progreso'
     evaluacion.porcentaje_cumplimiento = porcentaje_completado
     evaluacion.save()
@@ -195,64 +191,38 @@ def guardar_respuesta(request, guia_pk):
     try:
         data = json.loads(request.body)
         guia = get_object_or_404(GuiaAutocontrol, pk=guia_pk, activa=True)
-        evaluacion, created = EvaluacionGuia.objects.get_or_create(
-            guia=guia,
-            usuario=request.user,
-            defaults={'estado': 'en_progreso'}
-        )
+        usuario = request.user
 
-        responses_to_process = []
-        if isinstance(data, list): # Si se envían múltiples respuestas
-            responses_to_process = data
-        elif isinstance(data, dict): # Si se envía una sola respuesta
-            responses_to_process = [data]
-        else:
-            return JsonResponse({'status': 'error', 'message': 'Formato de datos JSON inesperado.'}, status=400)
+        responses_to_process = data if isinstance(data, list) else [data]
 
-        for item_data in responses_to_process:
-            numero_pregunta = item_data.get('numero_pregunta')
-            respuesta = item_data.get('respuesta')
-            fundamentacion = item_data.get('fundamentacion', '')
-
-            if numero_pregunta is None:
-                continue 
-
-            try:
-                numero_pregunta = int(numero_pregunta)
-            except (ValueError, TypeError):
-                continue 
+        for item in responses_to_process:
+            numero_pregunta = item.get('numero_pregunta')
+            respuesta = item.get('respuesta')
+            fundamentacion = item.get('fundamentacion', '')
 
             RespuestaGuia.objects.update_or_create(
-                evaluacion=evaluacion,
+                guia=guia,
+                usuario=usuario,
                 numero_pregunta=numero_pregunta,
                 defaults={
-                    'respuesta': respuesta if respuesta else None,
+                    'respuesta': respuesta,
                     'fundamentacion': fundamentacion
                 }
             )
 
-        # Recalcular el progreso
-        all_preguntas_flat = []
-        if guia.contenido_procesado and 'tablas_cuestionario' in guia.contenido_procesado:
-            for categoria in guia.contenido_procesado['tablas_cuestionario']:
-                for bloque in categoria.get('bloques', []):
-                    for pregunta in bloque.get('preguntas', []):
-                        all_preguntas_flat.append(pregunta)
-        
-        total_preguntas = len(all_preguntas_flat)
-        if total_preguntas == 0:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'No se encontraron preguntas en la guía.'
-            }, status=400)
-        
+        evaluacion, _ = EvaluacionGuia.objects.get_or_create(
+            guia=guia,
+            usuario=usuario,
+            defaults={'estado': 'en_progreso'}
+        )
+        total_preguntas = guia.total_preguntas
         respuestas_usuario = RespuestaGuia.objects.filter(
-            evaluacion=evaluacion,
+            guia=guia,
+            usuario=usuario,
             respuesta__in=['si', 'no', 'na']
         ).count()
-        
-        porcentaje_completado = round((respuestas_usuario / total_preguntas * 100))
-        
+        porcentaje_completado = round((respuestas_usuario / total_preguntas * 100)) if total_preguntas else 0
+
         evaluacion.estado = 'completada' if porcentaje_completado == 100 else 'en_progreso'
         evaluacion.porcentaje_cumplimiento = porcentaje_completado
         evaluacion.save()
@@ -265,12 +235,9 @@ def guardar_respuesta(request, guia_pk):
             'total_preguntas': total_preguntas
         })
 
-    except json.JSONDecodeError:
-        return JsonResponse({'status': 'error', 'message': 'Formato JSON inválido.'}, status=400)
     except Exception as e:
         logger.error(f"Error en guardar_respuesta: {str(e)}")
         return JsonResponse({'status': 'error', 'message': f'Error al guardar la respuesta: {str(e)}'}, status=500)
-        print(f"Error en guardar_respuesta: JsonResponse: {str(e)}")
 
 @login_required
 def completar_evaluacion(request, guia_pk):
@@ -286,16 +253,16 @@ def completar_evaluacion(request, guia_pk):
                         all_preguntas_from_guia.append(pregunta)
         total_preguntas = len(all_preguntas_from_guia)
 
-        # CORRECCIÓN: Filtrar RespuestaGuia a través de la relación evaluacion__guia
-        respuestas_count = RespuestaGuia.objects.filter(evaluacion__guia=guia, evaluacion__usuario=request.user).count()
+        # CORRECCIÓN: Filtrar RespuestaGuia por guia y usuario
+        respuestas_count = RespuestaGuia.objects.filter(guia=guia, usuario=request.user).count()
 
         if respuestas_count < total_preguntas:
             messages.warning(request, f'Faltan {total_preguntas - respuestas_count} preguntas por responder.')
             return redirect('guia:detalle', pk=guia_pk)
 
         evaluacion.estado = 'completada'
-        evaluacion.fecha_completada = timezone.now()
-        evaluacion.calcular_porcentaje_cumplimiento()
+        evaluacion.fecha_completado = timezone.now()
+        evaluacion.porcentaje_cumplimiento = 100 # Asignar directamente el 100% al completar
         if request.method == 'POST':
             evaluacion.observaciones_generales = request.POST.get('observaciones_generales', '')
             evaluacion.save()
@@ -309,21 +276,18 @@ def completar_evaluacion(request, guia_pk):
 @login_required
 def resumen_evaluacion(request, pk):
     evaluacion = get_object_or_404(EvaluacionGuia, pk=pk, usuario=request.user)
-    respuestas = RespuestaGuia.objects.filter(evaluacion=evaluacion).order_by('numero_pregunta')
+    respuestas = RespuestaGuia.objects.filter(guia=evaluacion.guia, usuario=request.user).order_by('numero_pregunta')
 
     stats_por_categoria = {}
     for respuesta in respuestas:
-        # Acceder a la guía a través de la evaluación
-        guia_actual = respuesta.evaluacion.guia
+        guia_actual = evaluacion.guia
         pregunta_info = next((p for categoria_data in guia_actual.contenido_procesado.get('tablas_cuestionario', [])
                               for bloque in categoria_data.get('bloques', [])
                               for p in bloque.get('preguntas', []) if p.get('id') == respuesta.numero_pregunta), None)
-        
         if pregunta_info:
             categoria = next((cat['componente_a_evaluar'] for cat in guia_actual.contenido_procesado.get('tablas_cuestionario', [])
                               for bloque in cat.get('bloques', [])
                               if pregunta_info in bloque.get('preguntas', [])), 'General')
-
             if categoria not in stats_por_categoria:
                 stats_por_categoria[categoria] = {'si': 0, 'no': 0, 'na': 0, 'total': 0}
             stats_por_categoria[categoria][respuesta.respuesta] += 1
@@ -364,7 +328,7 @@ def mis_evaluaciones(request):
         'pendiente': evaluaciones.filter(estado='pendiente').count() if hasattr(evaluaciones.first(), 'estado') else 0
     }
 
-    ultimas_completadas = evaluaciones_completadas.order_by('-fecha_completada')[:5]
+    ultimas_completadas = evaluaciones_completadas.order_by('-fecha_completado')[:5]
     mejor_evaluacion = evaluaciones_completadas.order_by('-porcentaje_cumplimiento').first()
     evaluaciones_bajo_rendimiento = evaluaciones_completadas.filter(porcentaje_cumplimiento__lt=60).order_by('porcentaje_cumplimiento')
 
@@ -428,31 +392,19 @@ def generar_pdf_guia(request, pk):
     # Obtener la evaluación y las respuestas del usuario para esta guía
     try:
         evaluacion = EvaluacionGuia.objects.get(guia=guia, usuario=usuario)
-        respuestas = RespuestaGuia.objects.filter(evaluacion=evaluacion).order_by('numero_pregunta')
+        # Optimizar consulta: solo los campos necesarios
+        respuestas = RespuestaGuia.objects.filter(guia=guia, usuario=usuario).order_by('numero_pregunta').only('numero_pregunta', 'respuesta', 'fundamentacion')
     except EvaluacionGuia.DoesNotExist:
         messages.error(request, 'No se encontró una evaluación completada para esta guía y usuario.')
         return redirect('guia:detalle', pk=pk) # Redirige de nuevo a la guía
 
     # Recolectar preguntas y respuestas
-    data_for_pdf_table = [['ID Pregunta', 'Pregunta', 'Respuesta', 'Fundamentación']]
-    all_questions_map = {} # Para mapear ID de pregunta a su texto completo
-    
-    if guia.contenido_procesado and 'tablas_cuestionario' in guia.contenido_procesado:
-        for categoria in guia.contenido_procesado['tablas_cuestionario']:
-            for bloque in categoria.get('bloques', []):
-                for pregunta in bloque.get('preguntas', []):
-                    question_id = pregunta.get('id')
-                    question_text = pregunta.get('texto')
-                    if question_id:
-                        all_questions_map[question_id] = question_text
-    
+    data_for_pdf_table = [['ID Pregunta', 'Respuesta', 'Fundamentación']]
     for respuesta in respuestas:
-        question_text = all_questions_map.get(respuesta.numero_pregunta, 'Pregunta no encontrada')
         data_for_pdf_table.append([
             str(respuesta.numero_pregunta),
-            Paragraph(question_text, getSampleStyleSheet()['Normal']), # Usar Paragraph para texto largo
-            respuesta.get_respuesta_display() or 'Sin Responder', # Mostrar el texto de la opción
-            Paragraph(respuesta.fundamentacion, getSampleStyleSheet()['Normal']) if respuesta.fundamentacion else ''
+            respuesta.get_respuesta_display() or 'Sin Responder',
+            respuesta.fundamentacion or ''
         ])
 
     # Crear el documento PDF
@@ -488,9 +440,9 @@ def generar_pdf_guia(request, pk):
     ])
     
     # Ancho de columnas (ajustar según tus necesidades)
-    # (ID, Pregunta, Respuesta, Fundamentación)
-    col_widths = [0.8 * inch, 3.5 * inch, 0.8 * inch, 2.5 * inch]
-    
+    # (ID, Respuesta, Fundamentación)
+    col_widths = [0.8 * inch, 0.8 * inch, 3.5 * inch]
+
     table = Table(data_for_pdf_table, colWidths=col_widths)
     table.setStyle(table_style)
     story.append(table)
@@ -499,25 +451,36 @@ def generar_pdf_guia(request, pk):
     # Datos del Usuario
     story.append(Paragraph("<b>Elaborado por:</b>", styles['h3']))
     story.append(Paragraph(f"<b>Nombre:</b> {usuario.get_full_name() or 'N/A'}", styles['Normal']))
-    story.append(Paragraph(f"<b>Cede:</b> {getattr(usuario, 'cede', 'N/A')}", styles['Normal'])) # Usar getattr para campos no estándar
-    story.append(Paragraph(f"<b>Cargo:</b> {getattr(usuario, 'cargo', 'N/A')}", styles['Normal']))
+    story.append(Paragraph(f"<b>Cede:</b> {getattr(usuario, 'cede', usuario.perfil.get_cede_display() or 'N/A')}", styles['Normal'])) # Usar getattr para campos no estándar
+    story.append(Paragraph(f"<b>Cargo:</b> {getattr(usuario, 'cargo', usuario.perfil.cargo or 'N/A')}", styles['Normal']))
     story.append(Paragraph(f"<b>Correo Electrónico:</b> {getattr(usuario, 'mail', usuario.email or 'N/A')}", styles['Normal']))
     story.append(Spacer(1, 0.4 * inch))
 
     # Firma
     story.append(Paragraph("<b>Firma:</b>", styles['Normal']))
-    user_firma = getattr(usuario, 'firma', None)
-    if user_firma and hasattr(user_firma, 'url'): # Asume que 'firma' es un ImageField o FileField
+    user_firma = getattr(usuario.perfil, 'firma_digital', None) if hasattr(usuario, 'perfil') else None
+    if user_firma and hasattr(user_firma, 'path') and hasattr(user_firma, 'url'):
         try:
-            # Asegúrate de que la ruta sea accesible por ReportLab
-            # Esto puede requerir un manejo de rutas si no es directamente accesible desde el sistema de archivos
-            # Por ejemplo, si está en S3, necesitarías descargarla o usar una URL accesible
-            firma_path = user_firma.path # Esto funciona si la imagen está en el sistema de archivos local
-            img = Image(firma_path, width=1*inch, height=0.5*inch) # Ajusta el tamaño
-            story.append(img)
+            import os
+            from PIL import Image as PILImage
+            if os.path.exists(user_firma.path):
+                # Redimensionar y comprimir la imagen antes de insertarla
+                pil_img = PILImage.open(user_firma.path)
+                pil_img = pil_img.convert('RGB')
+                max_width, max_height = 300, 150
+                pil_img.thumbnail((max_width, max_height))
+                temp_img_path = user_firma.path + '_temp_opt.jpg'
+                pil_img.save(temp_img_path, format='JPEG', quality=70)
+                img = Image(temp_img_path, width=1*inch, height=0.5*inch)
+                story.append(img)
+                os.remove(temp_img_path)
+            else:
+                story.append(Paragraph(f"<i>Archivo de firma no encontrado en: {user_firma.path}</i>", styles['Normal']))
         except Exception as e:
             story.append(Paragraph(f"<i>Error al cargar firma: {e}</i>", styles['Normal']))
-    elif user_firma: # Si 'firma' es una cadena de texto (e.g., ruta URL, o texto plano)
+    elif user_firma and isinstance(user_firma, str) and (user_firma.startswith('http') or user_firma.startswith('/media/')):
+        story.append(Paragraph(f"<i>Firma (URL): {user_firma}</i>", styles['Normal']))
+    elif user_firma:
         story.append(Paragraph(f"<i>{user_firma}</i>", styles['Normal']))
     else:
         story.append(Paragraph("<i>(Firma no disponible)</i>", styles['Normal']))
@@ -531,3 +494,15 @@ def generar_pdf_guia(request, pk):
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="Guia_{guia.titulo_guia.replace(" ", "_")}_Completada_{timezone.now().strftime("%Y%m%d")}.pdf"'
     return response
+
+@login_required
+def generar_pdf_guia_async_view(request, pk):
+    guia = get_object_or_404(GuiaAutocontrol, pk=pk)
+    usuario = request.user
+    output_dir = os.path.join(settings.MEDIA_ROOT, 'pdfs_temp')
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, f'guia_{guia.pk}_user_{usuario.pk}.pdf')
+    # Lanza la tarea asíncrona
+    task = generar_pdf_guia_async.delay(guia.pk, usuario.pk, output_path)
+    # Devuelve el estado y la URL de descarga
+    return JsonResponse({'status': 'processing', 'task_id': task.id, 'download_url': f'/media/pdfs_temp/guia_{guia.pk}_user_{usuario.pk}.pdf'})

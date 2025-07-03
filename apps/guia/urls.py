@@ -21,4 +21,5 @@ urlpatterns = [
     path('archivos/', views.archivo_guia_view, name='archivo_guia'),
     # Generar PDF
     path('guia/<int:pk>/generar_pdf/', views.generar_pdf_guia, name='generar_pdf_guia'), # <-- Nueva URL
+    path('guia/<int:pk>/generar_pdf_async/', views.generar_pdf_guia_async_view, name='generar_pdf_guia_async'),
 ]

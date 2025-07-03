@@ -72,10 +72,10 @@
                                 style="{% if pregunta.user_respuesta == 'no' %}display: block;{% else %}display: none;{% endif %}">
                                 <label for="fundamentacion_{{ pregunta.numero_pregunta }}" class="form-label">Fundamentación:</label>
                                 <textarea class="form-control" id="fundamentacion_{{ pregunta.numero_pregunta }}"
-                                        name="fundamentacion_{{ pregunta.numero_pregunta }}" rows="3">{{ pregunta.user_fundamentacion|default_if_none:"" }}</textarea>
+                                    name="fundamentacion_{{ pregunta.numero_pregunta }}" rows="3" {% if pregunta.user_respuesta != 'no' %}disabled{% endif %}>{{ pregunta.user_fundamentacion|default_if_none:"" }}</textarea>
                             </div>
-                            <div class="completion-indicator {% if pregunta.user_respuesta %}completed{% endif %}">
-                                {% if pregunta.user_respuesta %}<i class="fas fa-check"></i>{% endif %}
+                            <div class="completion-indicator {% if pregunta.user_respuesta and porcentaje_completado == 100 %}completed{% endif %}">
+                                {% if pregunta.user_respuesta and porcentaje_completado == 100 %}<i class="fas fa-check"></i>{% endif %}
                             </div>
                         </div>
                         {% endfor %}
@@ -87,6 +87,7 @@
                     <button type="button" id="guardar-todo-btn" class="btn btn-primary btn-lg">Guardar respuestas</button>
                 </div>
             </form>
+            
             {% else %}
             <div class="alert alert-warning text-center" role="alert">
                 <h4 class="alert-heading">¡Ups!</h4>
@@ -119,10 +120,6 @@
         </div>
     </div>
 </div>
-
+<script src="{% static 'javascript/detalles_guia.js' %}"></script>
 {% endblock %}
 
-{% block extra_js %}
-<script src="{% static 'javascript/detalles_guia.js' %}" defer></script>
-<script src="{% static 'javascript/bootstrap.bundle.min.js' %}" defer></script>
-{% endblock %}

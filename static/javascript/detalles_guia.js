@@ -4,19 +4,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var radios = document.querySelectorAll('input[name^="respuesta_"]');
 
-    // Función para manejar la visibilidad del campo de fundamentación
+    // Función para manejar la visibilidad y habilitación del campo de fundamentación
     function toggleFundamentacionBox(preguntaId, isNoSelected) {
         var box = document.getElementById('fundamentacion-box-' + preguntaId);
+        var textarea = document.getElementById('fundamentacion_' + preguntaId);
         if (box) {
             if (isNoSelected) {
                 box.style.display = 'block'; // Mostrar el campo
+                if (textarea) textarea.removeAttribute('disabled');
             } else {
                 box.style.display = 'none'; // Ocultar el campo
+                if (textarea) {
+                    textarea.setAttribute('disabled', 'disabled');
+                    textarea.value = '';
+                }
             }
         }
     }
 
-    // Inicializar la visibilidad al cargar la página
+    // Inicializar la visibilidad y habilitación al cargar la página
     radios.forEach(function (radio) {
         if (radio.checked) {
             var preguntaId = radio.getAttribute('data-pregunta-id');
@@ -31,6 +37,16 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleFundamentacionBox(preguntaId, this.value === 'no');
             // Enviar respuesta individualmente al cambiar el radio
             const fundamentacionTextarea = document.getElementById(`fundamentacion_${preguntaId}`);
+            if (this.value === 'no') {
+                // Habilitar y enfocar el textarea, y disparar un evento input para que el usuario pueda escribir inmediatamente
+                fundamentacionTextarea.removeAttribute('disabled');
+                fundamentacionTextarea.focus();
+  
+            } else {
+                // Limpiar y deshabilitar el textarea si se selecciona otra opción
+                fundamentacionTextarea.value = '';
+                fundamentacionTextarea.setAttribute('disabled', 'disabled');
+            }
             sendResponse(preguntaId, this.value, fundamentacionTextarea ? fundamentacionTextarea.value : '');
         });
     });
@@ -47,12 +63,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Función para enviar una única respuesta (usada por cambios individuales)
     function sendResponse(questionNumber, responseValue, fundamentacionValue) {
-        const url = `/guia/guardar_respuesta/${form.dataset.guiaPk}/`; // Usar una URL dinámica si es necesario
-        // O si la acción del formulario ya es la correcta:
-        // const url = form.action; // Si el action del form es el endpoint correcto
-
+        const url = `/guia/guardar_respuesta/${form.dataset.guiaPk}/`;
         const data = {
-            numero_pregunta: Number(questionNumber), // <-- aseguramos que sea número
+            numero_pregunta: Number(questionNumber),
             respuesta: responseValue,
             fundamentacion: fundamentacionValue
         };
@@ -61,199 +74,111 @@ document.addEventListener('DOMContentLoaded', function () {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
+                'X-CSRFToken': csrftoken
             },
             body: JSON.stringify(data)
         })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.message || 'Error desconocido del servidor'); });
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                console.log('Respuesta guardada individualmente:', data.message);
-                updateProgressBar(data.porcentaje_completado, data.preguntas_respondidas, data.total_preguntas);
-                updateCompletionIndicator(questionNumber, responseValue);
-
-                if (data.porcentaje_completado === 100) {
-                    showCompletionModal();
-                }
+                // Mostrar mensaje visual de éxito (puedes personalizar esto)
+                //showTemporaryMessage('Respuesta guardada', 'success', questionNumber);
             } else {
-                console.error('Error al guardar respuesta individual:', data.message);
-                showMessage('danger', 'Hubo un error al guardar la respuesta: ' + data.message);
+                showTemporaryMessage(data.message || 'Hubo un error al guardar la respuesta.', 'danger', questionNumber);
             }
         })
         .catch(error => {
-            console.error('Error de red o del servidor al guardar respuesta individual:', error);
-            showMessage('danger', 'Error de conexión o del servidor al guardar la respuesta: ' + error.message);
+            showTemporaryMessage('Error de red o del servidor al guardar la respuesta.', 'danger', questionNumber);
         });
     }
 
-    // Escuchar cambios en los textareas de fundamentación para enviar individualmente
-    document.querySelectorAll('.question-item textarea[name^="fundamentacion_"]').forEach(textareaInput => {
-        const questionId = textareaInput.id.replace('fundamentacion_', '');
-        let timeout = null;
-        textareaInput.addEventListener('input', function() {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                const selectedRadio = document.querySelector(`input[type="radio"][name="respuesta_${questionId}"]:checked`);
-                const responseValue = selectedRadio ? selectedRadio.value : null;
-                sendResponse(questionId, responseValue, this.value);
-            }, 800); // Pequeño retraso para evitar envíos excesivos al escribir
-        });
-    });
-
-    // --- Nueva función para mostrar el modal de completitud ---
-    function showCompletionModal() {
-        const completionModal = new bootstrap.Modal(document.getElementById('completionModal'));
-        completionModal.show();
-
-        document.getElementById('reviewAnswersBtn').onclick = function() {
-            completionModal.hide();
-        };
-
-        document.getElementById('finishFormBtn').onclick = function() {
-            completionModal.hide();
-            if (pdfDownloadUrl) {
-                window.location.href = pdfDownloadUrl;
-            } else {
-                showMessage('warning', 'URL de descarga de PDF no disponible.');
-            }
-        };
-    }
-
-    // Función para actualizar la barra de progreso
-    function updateProgressBar(porcentaje, respondidas, total) {
-        const progressBar = document.querySelector('.progress-bar');
-        const progressBarText = document.querySelector('.progress-bar-text');
-        const questionsCountText = document.querySelector('.progress-header p');
-
-        if (progressBar) {
-            progressBar.style.width = porcentaje + '%';
-            progressBar.setAttribute('aria-valuenow', porcentaje);
+    // Función para mostrar mensajes temporales junto a la pregunta
+    function showTemporaryMessage(message, type, preguntaId) {
+        let questionItem = document.querySelector(`.question-item[data-question-id="${preguntaId}"]`);
+        if (!questionItem) return;
+        let msgDiv = questionItem.querySelector('.temp-msg');
+        if (!msgDiv) {
+            msgDiv = document.createElement('div');
+            msgDiv.className = 'temp-msg';
+            questionItem.appendChild(msgDiv);
         }
-        if (progressBarText) {
-            progressBarText.textContent = porcentaje + '% Completado';
-        }
-        if (questionsCountText) {
-            questionsCountText.textContent = `Preguntas respondidas: ${respondidas} de ${total}`;
-        }
-    }
-
-    // Función para actualizar el indicador de completitud de la pregunta
-    function updateCompletionIndicator(questionNumber, responseValue) {
-        const questionDiv = document.querySelector(`.question-item[data-question-id="${questionNumber}"]`);
-        if (questionDiv) {
-            const completionIndicator = questionDiv.querySelector('.completion-indicator');
-            if (['si', 'no', 'na'].includes(responseValue)) {
-                questionDiv.classList.add('completed');
-                if (completionIndicator && !completionIndicator.querySelector('.fas.fa-check')) {
-                     completionIndicator.innerHTML = '<i class="fas fa-check"></i>';
-                }
-            } else {
-                questionDiv.classList.remove('completed');
-                if (completionIndicator) {
-                    completionIndicator.innerHTML = '';
-                }
-            }
-        }
-    }
-
-    // Función para mostrar mensajes temporales en la interfaz
-    function showMessage(type, message) {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('alert', `alert-${type}`, 'mt-3', 'alert-dismissible', 'fade', 'show');
-        messageDiv.setAttribute('role', 'alert');
-        messageDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        form.prepend(messageDiv);
+        msgDiv.textContent = message;
+        msgDiv.className = `temp-msg alert alert-${type} mt-2 py-1 px-2`;
         setTimeout(() => {
-            const bsAlert = bootstrap.Alert.getInstance(messageDiv);
-            if (bsAlert) bsAlert.close();
-            else messageDiv.remove();
-        }, 10000); // El mensaje desaparece después de 10 segundos
+            if (msgDiv) msgDiv.remove();
+        }, 2000);
     }
+    // Manejar el envío del formulario
+    if (pdfDownloadUrl) {
+        form.addEventListener('submit', function (event) {
+            event.preventDefault(); // Prevenir el envío normal del formulario
 
-    // --- Lógica para el botón "Guardar respuestas" (envío de todas las respuestas) ---
-    // Función para recolectar todas las respuestas del formulario
-    function collectAllResponses() {
-        const allResponses = [];
-        document.querySelectorAll('.question-item').forEach(questionDiv => {
-            const questionId = questionDiv.dataset.questionId;
-            const selectedRadio = questionDiv.querySelector(`input[type="radio"][name="respuesta_${questionId}"]:checked`);
-            const responseValue = selectedRadio ? selectedRadio.value : null;
-            const fundamentacionTextarea = questionDiv.querySelector(`textarea[name="fundamentacion_${questionId}"]`);
-            const fundamentacionValue = fundamentacionTextarea ? fundamentacionTextarea.value : '';
+            // Aquí puedes agregar lógica para validar o procesar el formulario antes de enviar
+            // Por ejemplo, podrías enviar las respuestas de cada pregunta
 
-            // Siempre incluir la pregunta si tiene ID, incluso si no está respondida,
-            // para que el backend pueda procesar el estado de todas las preguntas.
-            allResponses.push({
-                numero_pregunta: Number(questionId),
-                respuesta: responseValue,
-                fundamentacion: fundamentacionValue
-            });
+            // Redirigir al usuario a la URL de descarga del PDF
+            window.location.href = pdfDownloadUrl;
         });
-        return allResponses;
+    }
+    else {
+        form.addEventListener('submit', function (event) {
+            event.preventDefault(); // Prevenir el envío normal del formulario
+
+            // Aquí puedes agregar lógica para validar o procesar el formulario antes de enviar
+            // Por ejemplo, podrías enviar las respuestas de cada pregunta
+
+            // Redirigir al usuario a la lista de guías con mensaje de éxito
+            const params = new URLSearchParams({
+                msg: 'success',
+                detail: 'Respuestas guardadas correctamente.'
+            });
+            window.location.href = '/guia/?' + params.toString();
+        });
     }
 
-    // Listener para el botón "Guardar respuestas"
-    const guardarTodoBtn = document.getElementById('guardar-todo-btn');
-    if (guardarTodoBtn) {
-        guardarTodoBtn.addEventListener('click', function(e) {
-            e.preventDefault(); // Prevenir el comportamiento predeterminado del botón
-            console.log("Botón 'Guardar respuestas' clickeado. Iniciando guardado de todas las respuestas por AJAX.");
-
-            const allResponses = collectAllResponses();
-            
-            // Si el formulario no tiene preguntas o no se ha respondido nada, se puede mostrar un mensaje
-            if (allResponses.length === 0) {
-                showMessage('info', 'No hay respuestas para guardar.');
-                return;
-            }
-
-            fetch(`/guia/guardar_respuesta/${form.dataset.guiaPk}/`, { // Usar el endpoint correcto
+    // Evento para el botón Guardar respuestas
+    const guardarBtn = document.getElementById('guardar-todo-btn');
+    if (guardarBtn) {
+        guardarBtn.addEventListener('click', function () {
+            // Recolectar todas las respuestas del formulario
+            const preguntas = document.querySelectorAll('.question-item');
+            let respuestas = [];
+            preguntas.forEach(function (item) {
+                const preguntaId = item.getAttribute('data-question-id');
+                const checkedRadio = item.querySelector('input[type="radio"]:checked');
+                const respuesta = checkedRadio ? checkedRadio.value : '';
+                const fundamentacion = document.getElementById('fundamentacion_' + preguntaId)?.value || '';
+                respuestas.push({
+                    numero_pregunta: Number(preguntaId),
+                    respuesta: respuesta,
+                    fundamentacion: fundamentacion
+                });
+            });
+            // Enviar todas las respuestas en un solo request
+            fetch(`/guia/guardar_respuesta/${form.dataset.guiaPk}/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken,
+                    'X-CSRFToken': csrftoken
                 },
-                body: JSON.stringify(allResponses) // Enviar un array de respuestas
+                body: JSON.stringify(respuestas)
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.message || 'Error desconocido del servidor'); });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    console.log('Todas las respuestas guardadas:', data.message);
-                    updateProgressBar(data.porcentaje_completado, data.preguntas_respondidas, data.total_preguntas);
-                    // Re-evaluar los indicadores de completitud para todas las preguntas
-                    document.querySelectorAll('.question-item').forEach(questionDiv => {
-                        const questionId = questionDiv.dataset.questionId;
-                        const selectedRadio = questionDiv.querySelector(`input[type="radio"][name="respuesta_${questionId}"]:checked`);
-                        const responseValue = selectedRadio ? selectedRadio.value : null;
-                        updateCompletionIndicator(questionId, responseValue);
-                    });
-
                     if (data.porcentaje_completado === 100) {
-                        showCompletionModal();
+                        // Si está completa, abrir el PDF en una nueva pestaña
+                        window.open(form.dataset.pdfUrl, '_blank');
                     } else {
-                        showMessage('success', 'Respuestas guardadas correctamente.');
+                        // Si no está completa, redirigir a la lista de guías
+                        window.location.href = '/guia/?msg=success&detail=Respuestas guardadas correctamente.';
                     }
                 } else {
-                    console.error('Error al guardar todas las respuestas:', data.message);
-                    showMessage('danger', 'Hubo un error al guardar todas las respuestas: ' + data.message);
+                    alert(data.message || 'Error al guardar las respuestas.');
                 }
             })
-            .catch(error => {
-                console.error('Error de red o del servidor al guardar todas las respuestas:', error);
-                showMessage('danger', 'Error de conexión o del servidor al guardar todas las respuestas: ' + error.message);
+            .catch(() => {
+                alert('Error de red o del servidor al guardar las respuestas.');
             });
         });
     }

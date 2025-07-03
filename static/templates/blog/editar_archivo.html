@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Editar Archivo{% endblock %}
 
@@ -13,15 +14,15 @@
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="mb-3">
-                    <label for="id_nombre" class="form-label">Nombre:</label>
-                    <input type="text" class="form-control" id="id_nombre" name="nombre" value="{{ archivo.nombre }}" required>
-                </div>
-                <div class="mb-3">
                     <label for="id_archivo" class="form-label">Archivo actual:</label>
-                    <p><a href="{{ archivo.archivo.url }}" target="_blank">{{ archivo.archivo.name }}</a></p>
+                    <p>{{ archivo.archivo.name|cut:"archivos/" }}</p>
                     <label for="id_nuevo_archivo" class="form-label">Seleccionar nuevo archivo (opcional):</label>
                     <input type="file" class="form-control" id="id_nuevo_archivo" name="archivo">
                     <small class="form-text text-muted">Deja este campo vacío si no quieres cambiar el archivo.</small>
+                </div>
+                <div class="mb-3">
+                    <label for="id_nombre" class="form-label">Nombre:</label>
+                    <input type="text" class="form-control" id="id_nombre" name="nombre" value="{{ archivo.nombre }}" required>
                 </div>
                 <div class="mb-3">
                     <label for="id_tipo" class="form-label">Tipo:</label>
@@ -51,4 +52,9 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'javascript/base.js' %}"></script>
+
 {% endblock %}

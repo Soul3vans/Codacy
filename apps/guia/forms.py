@@ -37,6 +37,17 @@ class RespuestaGuiaForm(forms.ModelForm):
             })
         }
 
+    def clean(self):
+        cleaned_data = super().clean()
+        respuesta = cleaned_data.get('respuesta')
+        fundamentacion = cleaned_data.get('fundamentacion')
+
+        # Ejemplo de validación personalizada
+        if respuesta == 'no' and not fundamentacion:
+            raise forms.ValidationError("La fundamentación es obligatoria cuando la respuesta es 'No'.")
+
+        return cleaned_data
+
 class EvaluacionGuiaForm(forms.ModelForm):
     """
     Formulario para completar la evaluación.

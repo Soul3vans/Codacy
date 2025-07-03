@@ -97,13 +97,14 @@ def editar_archivo(request, pk):
     """
     Vista para editar un archivo existente.
     """
+    import os
     archivo = get_object_or_404(Archivo, pk=pk)
     original_es_formulario = archivo.es_formulario
 
     if request.method == 'POST':
         try:
             # Actualiza el archivo manualmente
-            archivo.nombre = request.POST.get('nombre')
+            nombre = request.POST.get('nombre')
             archivo.tipo = request.POST.get('tipo')
             archivo.descripcion = request.POST.get('descripcion', '')
             archivo.publico = 'publico' in request.POST
@@ -112,10 +113,19 @@ def editar_archivo(request, pk):
 
             updated_fields = ['nombre', 'tipo', 'descripcion', 'publico', 'es_formulario']
 
-            # Actualiza el archivo si se sube uno nuevo
+            # Si se sube un nuevo archivo, actualizar el nombre si el usuario no lo cambió manualmente
             if 'archivo' in request.FILES:
-                archivo.archivo = request.FILES['archivo']
+                nuevo_archivo = request.FILES['archivo']
+                archivo.archivo = nuevo_archivo
                 updated_fields.append('archivo')
+                # Si el nombre enviado es igual al nombre anterior, lo autocompletamos con el nuevo archivo
+                if nombre == archivo.nombre or not nombre:
+                    nombre_base = os.path.splitext(nuevo_archivo.name)[0]
+                    archivo.nombre = nombre_base
+                else:
+                    archivo.nombre = nombre
+            else:
+                archivo.nombre = nombre
 
             if original_es_formulario != nuevo_es_formulario and 'es_formulario' not in updated_fields:
                 updated_fields.append('es_formulario')

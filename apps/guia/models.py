@@ -1,21 +1,27 @@
-"""Modelo para las Guías de Autocontrol con serialización JSON segura"""
+"""Modelo mejorado para Guías de Autocontrol con optimizaciones de rendimiento y API de datos"""
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.core.cache import cache
+from django.db.models import Index
 from docx import Document
 from apps.dashboard.models import Archivo
 import re
 import logging
 import PyPDF2
 import mimetypes
+import hashlib
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
 class GuiaAutocontrol(models.Model):
     """
-    Modelo que extiende de Archivo para las Guías de Autocontrol.
-    Permite la extracción, limpieza y estructuración de cuestionarios desde PDF/DOCX.
+    Modelo mejorado para Guías de Autocontrol con:
+    - Optimización de rendimiento mediante caching
+    - Mejor API de datos para consultas frecuentes
+    - Indexación de búsquedas
     """
     archivo = models.OneToOneField(
         Archivo,
@@ -29,14 +35,141 @@ class GuiaAutocontrol(models.Model):
     contenido_procesado = models.JSONField(default=dict, blank=True)
     activa = models.BooleanField(default=True)
     fecha_procesamiento = models.DateTimeField(auto_now=True)
+    hash_archivo = models.CharField(max_length=64, blank=True, editable=False)
+    version = models.CharField(max_length=20, blank=True)
+    
+    # Campos denormalizados para optimización
+    total_preguntas = models.PositiveIntegerField(default=0, editable=False)
+    categorias_count = models.PositiveIntegerField(default=0, editable=False)
 
     class Meta:
         verbose_name = 'Guía de Autocontrol'
         verbose_name_plural = 'Guías de Autocontrol'
         ordering = ['-fecha_procesamiento']
+        indexes = [
+            Index(fields=['componente']),
+            Index(fields=['activa', 'fecha_procesamiento']),
+            Index(fields=['total_preguntas']),
+        ]
 
     def __str__(self):
         return f"Guía: {self.titulo_guia or self.archivo.nombre}"
+
+    def save(self, *args, **kwargs):
+        """Sobreescritura de save para calcular campos denormalizados y hash"""
+        if self.archivo and self.archivo.archivo:
+            self.hash_archivo = self.calcular_hash_archivo()
+        
+        # Actualizar campos denormalizados
+        if self.contenido_procesado:
+            self.total_preguntas = self._calcular_total_preguntas()
+            self.categorias_count = len(self.contenido_procesado.get('tablas_cuestionario', []))
+        # Actualiza el título de la guía si el archivo tiene nombre
+        if self.archivo and self.archivo.get_nombre_archivo():
+            self.titulo_guia = self.archivo.get_nombre_archivo()
+            
+        super().save(*args, **kwargs)
+
+    def calcular_hash_archivo(self):
+        """Calcula hash SHA-256 del archivo para detectar cambios"""
+        hash_obj = hashlib.sha256()
+        with self.archivo.archivo.open('rb') as f:
+            for chunk in iter(lambda: f.read(4096), b''):
+                hash_obj.update(chunk)
+        return hash_obj.hexdigest()
+
+    def _calcular_total_preguntas(self):
+        """Calcula el total de preguntas para denormalización"""
+        count = 0
+        for categoria in self.contenido_procesado.get('tablas_cuestionario', []):
+            for bloque in categoria.get('bloques', []):
+                count += len(bloque.get('preguntas', []))
+        return count
+
+    # API de Datos Mejorada #
+    def get_contenido_cache(self):
+        """Obtiene contenido procesado con cache"""
+        cache_key = f'guia_{self.pk}_contenido'
+        contenido = cache.get(cache_key)
+        if not contenido:
+            contenido = self.contenido_procesado
+            cache.set(cache_key, contenido, timeout=3600)  # 1 hora de cache
+        return contenido
+
+    def get_preguntas_por_componente(self, use_cache=True):
+        """Devuelve preguntas agrupadas por componente"""
+        if use_cache:
+            contenido = self.get_contenido_cache()
+        else:
+            contenido = self.contenido_procesado
+            
+        return {
+            comp['componente_a_evaluar']: [
+                pregunta for bloque in comp['bloques'] 
+                for pregunta in bloque['preguntas']
+            ]
+            for comp in contenido.get('tablas_cuestionario', [])
+        }
+
+    def get_estadisticas_componentes(self):
+        """Devuelve estadísticas resumidas por componente"""
+        stats = {}
+        contenido = self.get_contenido_cache()
+        
+        for componente in contenido.get('tablas_cuestionario', []):
+            nombre = componente['componente_a_evaluar']
+            total_preguntas = 0
+            preguntas_ejemplo = []
+            
+            for bloque in componente.get('bloques', []):
+                preguntas = bloque.get('preguntas', [])
+                total_preguntas += len(preguntas)
+                if len(preguntas_ejemplo) < 3 and preguntas:
+                    preguntas_ejemplo.append(preguntas[0]['texto'][:50] + '...')
+            
+            stats[nombre] = {
+                'total_preguntas': total_preguntas,
+                'bloques': len(componente.get('bloques', [])),
+                'preguntas_ejemplo': preguntas_ejemplo
+            }
+        
+        return stats
+
+    def generar_resumen_evaluacion(self, usuario_id):
+        """Genera resumen de evaluación para un usuario específico"""
+        from .models import RespuestaGuia  # Importación local para evitar circular
+        
+        respuestas = RespuestaGuia.objects.filter(
+            guia=self,
+            usuario_id=usuario_id
+        ).select_related('guia')
+        
+        total_preguntas = self.total_preguntas
+        respondidas = respuestas.count()
+        
+        # Agrupación por componente
+        por_componente = {}
+        preguntas_por_componente = self.get_preguntas_por_componente()
+        
+        for componente, preguntas in preguntas_por_componente.items():
+            ids_preguntas = [p['numero_pregunta'] for p in preguntas]
+            respuestas_componente = respuestas.filter(
+                numero_pregunta__in=ids_preguntas
+            ).count()
+            
+            por_componente[componente] = {
+                'total': len(ids_preguntas),
+                'respondidas': respuestas_componente,
+                'porcentaje': round((respuestas_componente / len(ids_preguntas)) * 100, 2) if ids_preguntas else 0
+            }
+        
+        return {
+            'total_preguntas': total_preguntas,
+            'respondidas': respondidas,
+            'porcentaje': round((respondidas / total_preguntas) * 100, 2) if total_preguntas > 0 else 0,
+            'por_componente': por_componente
+        }
+
 
     def get_absolute_url(self):
         return reverse('guia:detalle', kwargs={'pk': self.pk})
@@ -225,10 +358,50 @@ class GuiaAutocontrol(models.Model):
         except Exception as e:
             logger.error(f"Error al extraer contenido del archivo {self.archivo.nombre}: {e}")
             raise
+        
+class RespuestaGuia(models.Model):
+    """
+    Modelo mejorado de Respuesta con optimizaciones
+    """
+    RESPUESTA_CHOICES = [
+        ('si', 'Sí'),
+        ('no', 'No'),
+        ('na', 'No Aplica'),
+        ('', 'Sin Responder'),
+    ]
+    
+    guia = models.ForeignKey(GuiaAutocontrol, on_delete=models.CASCADE)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    numero_pregunta = models.IntegerField()
+    respuesta = models.CharField(
+        max_length=4, 
+        choices=RESPUESTA_CHOICES, 
+        blank=True, 
+        null=True, 
+        default=''
+    )
+    fundamentacion = models.TextField(blank=True)
+    fecha_respuesta = models.DateTimeField(auto_now=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+    evidencias = models.ManyToManyField(Archivo, blank=True)
+    
+    class Meta:
+        unique_together = ('guia', 'usuario', 'numero_pregunta')
+        verbose_name = 'Respuesta de Guía'
+        ordering = ['guia_id', 'numero_pregunta']
+        indexes = [
+            Index(fields=['guia', 'usuario']),
+            Index(fields=['numero_pregunta']),
+            Index(fields=['respuesta']),
+        ]
+
+    def __str__(self):
+        return f"Resp. a P{self.numero_pregunta} ({self.guia}) por {self.usuario}"
+
 
 class EvaluacionGuia(models.Model):
     """
-    Modelo para registrar la evaluación general de un usuario sobre una Guía de Autocontrol.
+    Modelo mejorado de Evaluación con optimizaciones
     """
     ESTADO_CHOICES = [
         ('no_iniciada', 'No Iniciada'),
@@ -236,145 +409,106 @@ class EvaluacionGuia(models.Model):
         ('completada', 'Completada'),
         ('revisada', 'Revisada'),
     ]
-
-    guia = models.ForeignKey(GuiaAutocontrol, on_delete=models.CASCADE, related_name='evaluaciones', verbose_name='Guía')
-    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='evaluaciones_guias', verbose_name='Usuario')
+    
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='evaluaciones_guias')
+    guia = models.ForeignKey(GuiaAutocontrol, on_delete=models.CASCADE, related_name='evaluaciones')
     fecha_inicio = models.DateTimeField(auto_now_add=True)
     fecha_completado = models.DateTimeField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='no_iniciada')
-    porcentaje_cumplimiento = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name='Porcentaje de Cumplimiento')
-    comentarios = models.TextField(blank=True, verbose_name='Observaciones Generales')
-
+    porcentaje_cumplimiento = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=0.00,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    comentarios = models.TextField(blank=True)
+    respuestas_json = models.JSONField(default=dict, blank=True, help_text="Tabla de respuestas agrupadas por componente y pregunta")
+    
+    # Campos denormalizados para optimización
+    total_respuestas = models.PositiveIntegerField(default=0)
+    respuestas_si = models.PositiveIntegerField(default=0)
+    respuestas_no = models.PositiveIntegerField(default=0)
+    respuestas_na = models.PositiveIntegerField(default=0)
+    
     class Meta:
         unique_together = ('guia', 'usuario')
         verbose_name = 'Evaluación de Guía'
-        verbose_name_plural = 'Evaluaciones de Guías'
         ordering = ['-fecha_inicio']
+        indexes = [
+            Index(fields=['estado']),
+            Index(fields=['porcentaje_cumplimiento']),
+            Index(fields=['guia', 'usuario']),
+        ]
 
     def __str__(self):
         return f"Evaluación de {self.guia.titulo_guia} por {self.usuario.username}"
 
-    def calcular_porcentaje_cumplimiento(self):
+    def actualizar_estadisticas(self):
         """
-        Calcula el porcentaje de cumplimiento basado en las respuestas del usuario.
+        Actualiza campos denormalizados basado en respuestas
         """
-        #Descomentar para debug--> print(f"DEBUG: Entering EvaluacionGuia.calcular_porcentaje_cumplimiento for PK: {self.pk}")
-        if not self.guia:
-            #Descomentar para debug--> print(f"ERROR: EvaluacionGuia (PK: {self.pk}) tiene guia=None. No se puede calcular el cumplimiento.")
-            self.porcentaje_cumplimiento = 0.00
-            self.estado = 'no_iniciada'
-            self.save() # Ensure save is called
-            return
-        print(f"DEBUG: EvaluacionGuia.guia is present: {self.guia.pk}")
-
-        respuestas = RespuestaGuia.objects.filter(evaluacion=self)
+        respuestas = self.respuestas.all()
+        self.total_respuestas = respuestas.count()
+        self.respuestas_si = respuestas.filter(respuesta='si').count()
+        self.respuestas_no = respuestas.filter(respuesta='no').count()
+        self.respuestas_na = respuestas.filter(respuesta='na').count()
         
-        # Aplanar la lista de preguntas desde la estructura anidada de contenido_procesado
-        all_preguntas_from_guia = []
-        if self.guia.contenido_procesado and 'tablas_cuestionario' in self.guia.contenido_procesado:
-            for categoria in self.guia.contenido_procesado['tablas_cuestionario']:
-                for bloque in categoria.get('bloques', []):
-                    for pregunta in bloque.get('preguntas', []):
-                        all_preguntas_from_guia.append(pregunta)
-
-        total_actual_preguntas = len(all_preguntas_from_guia)
-
-        if total_actual_preguntas == 0:
-            self.porcentaje_cumplimiento = 0.00
-            self.estado = 'no_iniciada' # O 'en_progreso' si hay preguntas pero ninguna respondida
-            self.save()
-            return
-
-        preguntas_respondidas = respuestas.filter(respuesta__in=['si', 'no', 'na']).count()
+        if self.guia.total_preguntas > 0:
+            self.porcentaje_cumplimiento = round(
+                (self.total_respuestas / self.guia.total_preguntas) * 100, 
+                2
+            )
         
-        porcentaje_completado = (preguntas_respondidas / total_actual_preguntas) * 100
-        self.porcentaje_cumplimiento = round(porcentaje_completado, 2) # Redondear a 2 decimales
-        self.estado = 'completada' if self.porcentaje_cumplimiento == 100 else 'en_progreso'
+        self.estado = 'completada' if self.porcentaje_cumplimiento >= 100 else 'en_progreso'
         self.save()
 
-    def obtener_estadisticas_por_categoria(self):
+    def actualizar_respuestas_json(self):
         """
-        Obtiene estadísticas de respuestas por categoría.
+        Actualiza el campo respuestas_json con la estructura agrupada por componente, número de pregunta, respuesta y fundamentación.
         """
-        if not self.guia.contenido_procesado.get('tablas_cuestionario'):
-            return {}
+        from .models import RespuestaGuia
+        # Obtener todas las respuestas de este usuario para esta guía
+        respuestas = RespuestaGuia.objects.filter(guia=self.guia, usuario=self.usuario)
+        # Obtener la estructura de componentes y preguntas
+        contenido = self.guia.get_contenido_cache()
+        tabla = []
+        for componente in contenido.get('tablas_cuestionario', []):
+            comp_nombre = componente.get('componente_a_evaluar', '')
+            comp_respuestas = []
+            for bloque in componente.get('bloques', []):
+                for pregunta in bloque.get('preguntas', []):
+                    num = pregunta.get('numero_pregunta')
+                    r = respuestas.filter(numero_pregunta=num).first()
+                    comp_respuestas.append({
+                        'numero_pregunta': num,
+                        'respuesta': r.respuesta if r else '',
+                        'fundamentacion': r.fundamentacion if r else ''
+                    })
+            tabla.append({
+                'componente_a_evaluar': comp_nombre,
+                'respuestas_guias': comp_respuestas
+            })
+        self.respuestas_json = {'tabla_respuestas': tabla}
+        self.save(update_fields=['respuestas_json'])
 
-        estadisticas = {}
-        for categoria in self.guia.contenido_procesado['tablas_cuestionario']:
-            nombre_categoria = categoria['componente_a_evaluar']
-            preguntas_categoria = []
-            for bloque in categoria.get('bloques', []):
-                preguntas_categoria.extend(bloque.get('preguntas', []))
-
-            # Usar 'id' para los números de pregunta si es lo que usas en tu JSON
-            numeros_preguntas = [p.get('id') for p in preguntas_categoria if p.get('id') is not None]
-            respuestas_categoria = self.respuestas.filter(numero_pregunta__in=numeros_preguntas)
-
-            total = respuestas_categoria.count()
-            si_count = respuestas_categoria.filter(respuesta='si').count()
-            no_count = respuestas_categoria.filter(respuesta='no').count()
-            na_count = respuestas_categoria.filter(respuesta='na').count()
-
-            estadisticas[nombre_categoria] = {
-                'total': total,
-                'si': si_count,
-                'no': no_count,
-                'na': na_count,
-            }
-
-        return estadisticas
-
-class RespuestaGuia(models.Model):
-    """
-    Modelo para registrar la respuesta a una pregunta específica de una evaluación de Guía.
-    """
-    evaluacion = models.ForeignKey(EvaluacionGuia, on_delete=models.CASCADE, related_name='respuestas')
-    numero_pregunta = models.IntegerField(verbose_name='Número de Pregunta')
-
-    RESPUESTA_CHOICES = [
-        ('si', 'Sí'),
-        ('no', 'No'),
-        ('na', 'No Aplica'),
-        (None, 'Sin Responder')
-    ]
-
-    respuesta = models.CharField(
-        max_length=3,
-        choices=RESPUESTA_CHOICES,
-        blank=True,
-        null=True,
-        verbose_name='Respuesta'
-    )
-    fundamentacion = models.TextField(blank=True, verbose_name='Fundamentación')
-    fecha_respuesta = models.DateTimeField(auto_now=True, verbose_name='Fecha de Respuesta')
-
-    class Meta:
-        unique_together = ('evaluacion', 'numero_pregunta')
-        verbose_name = 'Respuesta de Guía'
-        ordering = ['evaluacion__guia__titulo_guia', 'numero_pregunta']
- 
-    def __str__(self):
-        try:
-            guia_title = "Guía Desconocida"
-            usuario_username = "Usuario Desconocido"
-            if hasattr(self, 'evaluacion') and self.evaluacion:
-                if hasattr(self.evaluacion, 'guia') and self.evaluacion.guia:
-                    guia_title = self.evaluacion.guia.titulo_guia
-                if hasattr(self.evaluacion, 'usuario') and self.evaluacion.usuario:
-                    usuario_username = self.evaluacion.usuario.username
-            return f"Resp. a P{self.numero_pregunta} ({guia_title}) por {usuario_username}"
-        except Exception as e:
-            return f"Resp. a P{self.numero_pregunta} (Error al obtener info: {type(e).__name__})"
- 
- 
-    def save(self, *args, **kwargs):
-        #Descomentar para debug--> print(f"DEBUG: Entering RespuestaGuia.save for PK: {self.pk if self.pk else 'New'}, Evaluacion ID: {self.evaluacion.pk if self.evaluacion else 'None'}")
-        super().save(*args, **kwargs)
-        # Asegurarse de que la evaluación exista y sea válida antes de llamar acalcular_porcentaje_cumplimiento
-        if self.evaluacion:
-            #Descomentar para debug--> print(f"DEBUG: Calling calcular_porcentaje_cumplimiento for Evaluacion ID: {self.evaluacion.pk}")
-            self.evaluacion.calcular_porcentaje_cumplimiento()
-        else:
-            print(f"WARNING: RespuestaGuia (PK: {self.pk if self.pk else 'New'})has no associated evaluation when saving. Skipping percentage calculation.")
-
- 
+    def generar_informe(self):
+        """
+        Genera informe detallado de la evaluación
+        """
+        return {
+            'guia': self.guia.titulo_guia,
+            'usuario': self.usuario.get_full_name(),
+            'estado': self.get_estado_display(),
+            'porcentaje': self.porcentaje_cumplimiento,
+            'fecha_inicio': self.fecha_inicio,
+            'fecha_completado': self.fecha_completado,
+            'estadisticas': {
+                'total_preguntas': self.guia.total_preguntas,
+                'respondidas': self.total_respuestas,
+                'si': self.respuestas_si,
+                'no': self.respuestas_no,
+                'na': self.respuestas_na,
+            },
+            'por_componente': self.guia.generar_resumen_evaluacion(self.usuario_id)['por_componente']
+        }
+        return informe
