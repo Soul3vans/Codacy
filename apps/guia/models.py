@@ -447,19 +447,37 @@ class EvaluacionGuia(models.Model):
         """
         Actualiza campos denormalizados basado en respuestas
         """
-        respuestas = self.respuestas.all()
+        # Obtener todas las respuestas de este usuario para esta guía
+        from .models import RespuestaGuia
+        respuestas = RespuestaGuia.objects.filter(guia=self.guia, usuario=self.usuario)
+        
+        # Calcula y guarda el total de respuestas y el conteo por tipo para este usuario y guía
         self.total_respuestas = respuestas.count()
         self.respuestas_si = respuestas.filter(respuesta='si').count()
         self.respuestas_no = respuestas.filter(respuesta='no').count()
         self.respuestas_na = respuestas.filter(respuesta='na').count()
         
-        if self.guia.total_preguntas > 0:
+        # Solo contar respuestas válidas (si/no/na) para el porcentaje
+        respuestas_validas = self.respuestas_si + self.respuestas_no + self.respuestas_na
+        total_preguntas = self.guia.total_preguntas
+        
+        if total_preguntas > 0:
             self.porcentaje_cumplimiento = round(
-                (self.total_respuestas / self.guia.total_preguntas) * 100, 
+                (respuestas_validas  / total_preguntas) * 100, 
                 2
             )
         
-        self.estado = 'completada' if self.porcentaje_cumplimiento >= 100 else 'en_progreso'
+        if self.porcentaje_cumplimiento >= 100:
+            self.estado = 'completada'
+            # Solo asigna la fecha si aún no está puesta
+            if not self.fecha_completado:
+                from django.utils import timezone
+                self.fecha_completado = timezone.now()
+        else:
+            self.estado = 'en_progreso'
+            # Si se vuelve a menos de 100%, borra la fecha de completado
+            self.fecha_completado = None
+
         self.save()
 
     def actualizar_respuestas_json(self):

@@ -15,7 +15,6 @@ ESTADO_CHOICES = [
     ('en_progreso', 'En Progreso'),
     ('completada', 'Completada'),
     ('revisada', 'Revisada'),
-    # Asegúrate de que 'aprobada' exista en tu modelo
     ('aprobada', 'Aprobada'),
 ]
 

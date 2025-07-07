@@ -10,7 +10,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('apps.dashboard.urls')),
     path('usuarios/', include('apps.usuarios.urls')),
-    path('auth/', include('django.contrib.auth.urls')),
     path('guia/', include('apps.guia.urls')),
 ]
 if settings.DEBUG:

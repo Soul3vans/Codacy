@@ -15,14 +15,14 @@
             <p class="mt-2 mb-0">Preguntas respondidas: {{ preguntas_respondidas }} de {{ total_preguntas }}</p>
         </div>
         <div class="card-body p-4">
-            {% if messages %}
+            <!--{% if messages %}
             {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
                 {{ message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             {% endfor %}
-            {% endif %}
+            {% endif %}-->
             <div class="mb-4">
                 <h3 class="mb-2">Componente</h3>
                 <div class="alert alert-info">{{ guia.componente }}</div>
@@ -103,6 +103,9 @@
     </div>
 </div>
 
+<!-- Formulario oculto para descarga de PDF -->
+<form id="descargarPdfForm" method="get" style="display:none;"></form>
+
 <div class="modal fade" id="completionModal" tabindex="-1" aria-labelledby="completionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -111,7 +114,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                Todas las preguntas han sido respondidas. ¿Qué deseas hacer ahora(?
+                Todas las preguntas han sido respondidas. ¿Qué deseas hacer ahora?
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="reviewAnswersBtn">Revisar respuestas</button>
@@ -120,6 +123,9 @@
         </div>
     </div>
 </div>
-<script src="{% static 'javascript/detalles_guia.js' %}"></script>
+
 {% endblock %}
 
+{% block extra_js %}
+<script src="{% static 'javascript/detalles_guia.js' %}"></script>
+{% endblock %}

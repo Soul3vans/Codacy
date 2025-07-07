@@ -26,9 +26,6 @@ def get_user_session_status(user):
             return 'Activo'
     return 'Inactivo'
 
-def home(request):
-    return render(request, 'dashboard/index.html')
-
 @login_required
 def perfil(request):
     """Vista para mostrar el perfil del usuario actual."""
@@ -132,6 +129,7 @@ def asegurar_perfil_superuser(sender, instance, created, **kwargs):
 def login_view(request):
     """Vista personalizada para login."""
     if request.user.is_authenticated:
+        messages.success(request, 'Bienvenido.')
         return redirect('inicio')
 
     if request.method == 'POST':
@@ -162,7 +160,6 @@ def login_view(request):
                 messages.error(request, 'Nombre de usuario o contraseña incorrectos.')
         else:
             messages.error(request, 'Por favor, completa todos los campos.')
-
     return render(request, 'registration/login.html', {'title': 'Iniciar Sesión'})
 
 def logout_view(request):
@@ -171,6 +168,9 @@ def logout_view(request):
     auth_logout(request)
     messages.success(request, 'Has cerrado sesión correctamente.')
     return redirect('inicio')
+
+def recuperacion(request):
+    return redirect('registration/recuperacion.html')
 
 def registro(request):
     """Vista para registro de nuevos usuarios."""

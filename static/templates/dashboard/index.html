@@ -32,20 +32,15 @@
     <ul class="list-group">
         {% for enlace in enlaces_interes %}
         <li class="list-group-item d-flex justify-content-between align-items-start">
-            <div class="ms-2 me-auto">
-                <div class="fw-bold">
+            <div class="ms-2 me-auto d-flex align-items-center flex-wrap gap-2">
+                <div class="fw-bold mb-0">
                     <a href="{{ enlace.url }}" target="_blank" rel="noopener noreferrer">
                         <i class="fas fa-external-link-alt me-1"></i>{{ enlace.titulo }}
                     </a>
                 </div>
-                {{ enlace.descripcion|truncatewords:20 }}
+                <span class="text-muted mb-0">{{ enlace.descripcion|truncatewords:20 }}</span>
                 {% if enlace.categoria %}
-                    <span class="badge bg-primary ms-2">{{ enlace.categoria }}</span>
-                {% endif %}
-                {% if enlace.es_destacado %}
-                    <span class="badge bg-warning text-dark ms-2">
-                        <i class="fas fa-star me-1"></i>Destacado
-                    </span>
+                    <span class="badge bg-primary">{{ enlace.categoria }}</span>
                 {% endif %}
             </div>
             {% if enlace.fecha_creacion %}

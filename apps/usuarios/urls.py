@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, reverse_lazy
 from django.contrib.auth.views import LogoutView
 from apps.dashboard.views import inicio
 from . import views
@@ -9,7 +9,8 @@ urlpatterns = [
     # Autenticación
     path('registro/', views.registro, name='registro'),
     path('login/', views.login_view, name='login'),
-    path('logout/', LogoutView.as_view(http_method_names=['get', 'post']), name='logout'),
+    path('logout/', views.logout_view, name='logout'),
+    path('recuperacion/', views.recuperacion, name='recuperacion'),
     # URLs para perfil de usuario
     path('perfil/', views.perfil, name='perfil'),
     path('perfil/actualizar/', views.actualizar_perfil, name='editar_perfil'),

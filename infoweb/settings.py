@@ -64,9 +64,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.usuarios.middleware.UpdateLastActivityMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'apps.usuarios.middleware.UpdateLastActivityMiddleware', 
 ]
 
 ROOT_URLCONF = 'infoweb.urls'
@@ -161,7 +161,7 @@ SECURE_HSTS_PRELOAD = True
 # URLs de login/logout
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'inicio'
-LOGOUT_REDIRECT_URL = 'login'
+LOGOUT_REDIRECT_URL = 'inicio'
 
 LOGGING = {
     'version': 1,
@@ -202,3 +202,6 @@ SESSION_SAVE_EVERY_REQUEST = True
 # si no hay una opción "recordarme" o si quieres forzarlo.
 # Si quieres que dure 30 minutos INCLUSO si cierran el navegador, ponlo en False.
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True # O False, dependiendo del comportamiento deseado para "recordarme"
+
+# Forzar el backend de mensajes a usar la sesión
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'

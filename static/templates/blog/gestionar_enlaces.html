@@ -26,7 +26,6 @@
                                         <th>URL</th>
                                         <th>Categoría</th>
                                         <th>Estado</th>
-                                        <th>Destacado</th>
                                         <th>Fecha</th>
                                         <th width="200">Acciones</th>
                                     </tr>
@@ -58,13 +57,6 @@
                                                 <span class="badge bg-success">Activo</span>
                                             {% else %}
                                                 <span class="badge bg-secondary">Inactivo</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if enlace.es_destacado %}
-                                                <i class="fas fa-star text-warning"></i>
-                                            {% else %}
-                                                <i class="far fa-star text-muted"></i>
                                             {% endif %}
                                         </td>
                                         <td>
@@ -179,12 +171,12 @@
                                   placeholder="Breve descripción del enlace"></textarea>
                     </div>
 
-                    <div class="mb-3">
+                    <!--<div class="mb-3">
                         <label for="imagen" class="form-label">Imagen (opcional)</label>
                         <input type="file" class="form-control" id="imagen" name="imagen" accept="image/*">
                         <div class="form-text">Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 2MB</div>
                         <div id="imagen_preview" class="mt-2"></div>
-                    </div>
+                    </div>-->
 
                     <div class="row">
                         <div class="col-md-6">
@@ -193,12 +185,12 @@
                                 <label class="form-check-label" for="activo">Enlace activo</label>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <!--<div class="col-md-6">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="es_destacado" name="es_destacado">
                                 <label class="form-check-label" for="es_destacado">Enlace destacado</label>
                             </div>
-                        </div>
+                        </div>-->
                     </div>
                 </div>
                 <div class="modal-footer">
