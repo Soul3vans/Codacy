@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}GAU{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-5 fw-bold mb-3">Bienvenido a nuestra página</h1>
+                <p class="lead mb-4">Descubre contenido de calidad, noticias educativas y recursos para el aprendizaje. Un espacio seguro y confiable para toda la comunidad escolar.</p>
+            </div>
+            <div class="col-lg-4 text-center">
+                <i class="fas fa-book-open fa-5x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container py-5">
+
+
+     <!-- Enlaces de Interés -->
+     {% if enlaces_interes %}
+<section class="mb-5">
+    <h2 class="text-center mb-4">
+        <i class="fas fa-link me-2"></i>Enlaces de Interés
+    </h2>
+    <ul class="list-group">
+        {% for enlace in enlaces_interes %}
+        <li class="list-group-item d-flex justify-content-between align-items-start">
+            <div class="ms-2 me-auto d-flex align-items-center flex-wrap gap-2">
+                <div class="fw-bold mb-0">
+                    <a href="{{ enlace.url }}" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-external-link-alt me-1"></i>{{ enlace.titulo }}
+                    </a>
+                </div>
+                <span class="text-muted mb-0">{{ enlace.descripcion|truncatewords:20 }}</span>
+                {% if enlace.categoria %}
+                    <span class="badge bg-primary">{{ enlace.categoria }}</span>
+                {% endif %}
+            </div>
+            {% if enlace.fecha_creacion %}
+                <small class="text-muted d-block text-end">
+                    <i class="fas fa-calendar me-1"></i>{{ enlace.fecha_creacion|date:"d M Y" }}
+                </small>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+    
+</div>
+{% endblock %}

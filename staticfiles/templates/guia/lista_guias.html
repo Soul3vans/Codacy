@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Formularios - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+        <h1 class="h2"><i class="fas fa-clipboard-list me-2"></i>Guías de Autocontrol</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#filtroModal">
+                    <i class="fas fa-filter me-1"></i>Filtros
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas rápidas -->
+    <div class="row mb-4">
+        <div class="col-6 col-md-3 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Guías Activas</h6>
+                            <h4>{{ guias|length }}</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clipboard-list fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Completadas</h6>
+                            <h4>{{ guias_completadas|default:0 }}</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">En Progreso</h6>
+                            <h4>{{ evaluaciones_en_progreso }}</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Pendientes</h6>
+                            <h4>{{ guias_pendientes }}</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-hourglass-half fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de guías -->
+    <div class="row">
+        {% for guia in guias %}
+        <div class="col-12 col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header category-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-file-alt me-2"></i>
+                            {{ guia.titulo_guia|truncatechars:35 }}
+                        </h6>
+                        {% if guia.activa %}
+                            <span class="badge bg-success">Activa</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactiva</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Componente:</strong>
+                        <span class="text-muted">{{ guia.componente|default:"No especificado" }}</span>
+                    </div>
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="border rounded p-2">
+                                <i class="fas fa-question-circle text-primary"></i>
+                                <div class="small text-muted">Preguntas</div>
+                                <strong>{{ guia.contenido_procesado.preguntas|length|default:0 }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded p-2">
+                                <i class="fas fa-calendar text-success"></i>
+                                <div class="small text-muted">Procesado</div>
+                                <strong>{{ guia.fecha_procesamiento|date:"d/m" }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    {% with guia.evaluaciones.all as evaluaciones_guia %}
+                    {% for evaluacion in evaluaciones_guia %}
+                        {% if evaluacion.usuario == request.user %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="text-muted">Tu progreso</small>
+                                <small class="text-muted">{{ evaluacion.porcentaje_cumplimiento|floatformat:0 }}%</small>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar 
+                                    {% if evaluacion.porcentaje_cumplimiento >= 80 %}bg-success
+                                    {% elif evaluacion.porcentaje_cumplimiento >= 60 %}bg-warning
+                                    {% else %}bg-danger{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ evaluacion.porcentaje_cumplimiento }}%">
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                Estado: 
+                                <span class="badge 
+                                    {% if evaluacion.estado == 'completada' %}bg-success
+                                    {% elif evaluacion.estado == 'en_progreso' %}bg-warning
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ evaluacion.get_estado_display }}
+                                </span>
+                            </small>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% endwith %}
+                </div>
+                <div class="card-footer bg-transparent">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'guia:detalle' guia.pk %}" class="btn btn-primary btn-custom">
+                            <i class="fas fa-play me-2"></i>
+                            {% with guia.evaluaciones.all as evaluaciones_guia %}
+                            {% for evaluacion in evaluaciones_guia %}
+                                {% if evaluacion.usuario == request.user %}
+                                    Continuar Evaluación
+                                {% endif %}
+                            {% empty %}
+                                Iniciar Evaluación
+                            {% endfor %}
+                            {% endwith %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">No hay guías disponibles</h4>
+                <p class="text-muted">No se encontraron guías de autocontrol activas en el sistema.</p>
+                <a href="#" class="btn btn-outline-primary">
+                    <i class="fas fa-plus me-2"></i>Agregar Nueva Guía
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal de Filtros -->
+<div class="modal fade" id="filtroModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filtrar Guías</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="get">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="busqueda" class="form-label">Buscar por nombre:</label>
+                        <input type="text" class="form-control" id="busqueda" name="busqueda" 
+                               value="{{ request.GET.busqueda }}" placeholder="Nombre de la guía...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="componente" class="form-label">Componente:</label>
+                        <input type="text" class="form-control" id="componente" name="componente" 
+                               value="{{ request.GET.componente }}" placeholder="Componente...">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="solo_activas" name="solo_activas" 
+                                   {% if request.GET.solo_activas %}checked{% endif %}>
+                            <label class="form-check-label" for="solo_activas">
+                                Solo guías activas
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+                    <a href="{% url 'guia:lista' %}" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
