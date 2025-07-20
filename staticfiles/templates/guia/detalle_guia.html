@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ guia.titulo_guia }} - Guías de Autocontrol{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg">
+        <div class="progress-header text-center p-4">
+            <h1 class="mb-2">{{ guia.titulo_guia }}</h1>
+            <div class="progress mt-3">
+                <div class="progress-bar" role="progressbar" style="width: {{ porcentaje_completado }}%;" aria-valuenow="{{ porcentaje_completado }}" aria-valuemin="0" aria-valuemax="100"></div>
+                <span class="progress-bar-text">{{ porcentaje_completado }}% Completado</span>
+            </div>
+            <p class="mt-2 mb-0">Preguntas respondidas: {{ preguntas_respondidas }} de {{ total_preguntas }}</p>
+        </div>
+        <div class="card-body p-4">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <!-- Información estructurada de la guía -->
+            <div class="mb-4">
+                <h3 class="mb-2">Componente</h3>
+                <div class="alert alert-info">{{ guia.componente }}</div>
+                <h3 class="mb-2">Propósito</h3>
+                <div class="alert alert-secondary" style="white-space: pre-line;">
+                    {{ guia.proposito|linebreaksbr }}
+                </div>
+            </div>
+            {% if preguntas_por_categoria %}
+            <form method="post" id="form-todas-preguntas">
+                {% csrf_token %}
+                {% for categoria_data in preguntas_por_categoria %}
+                    <div class="question-section shadow-sm mb-4">
+                        <div class="category-header">
+                            {{ categoria_data.categoria }}
+                        </div>
+                        {% for bloque in categoria_data.bloques %}
+                            <div class="block-header fw-bold text-primary mb-2">{{ bloque.encabezado }}</div>
+                            <div class="question-list">
+                                {% for pregunta in bloque.preguntas %}
+                                    <div class="question-item" id="pregunta-{{ pregunta.numero_pregunta }}">
+                                        <div class="question-content">
+                                            <p class="mb-2">{{ pregunta.numero_pregunta }} {{ pregunta.texto }}</p>
+                                            <input type="hidden" name="numero_pregunta_{{ pregunta.numero_pregunta }}" value="{{ pregunta.numero_pregunta }}">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="respuesta_{{ pregunta.numero_pregunta }}" id="respuesta-si-{{ pregunta.numero_pregunta }}" value="si" {% if pregunta.user_respuesta == 'si' %}checked{% endif %}>
+                                                    <label class="form-check-label" for="respuesta-si-{{ pregunta.numero_pregunta }}">Sí</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="respuesta_{{ pregunta.numero_pregunta }}" id="respuesta-no-{{ pregunta.numero_pregunta }}" value="no" {% if pregunta.user_respuesta == 'no' %}checked{% endif %}>
+                                                    <label class="form-check-label" for="respuesta-no-{{ pregunta.numero_pregunta }}">No</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="respuesta_{{ pregunta.numero_pregunta }}" id="respuesta-na-{{ pregunta.numero_pregunta }}" value="na" {% if pregunta.user_respuesta == 'na' %}checked{% endif %}>
+                                                    <label class="form-check-label" for="respuesta-na-{{ pregunta.numero_pregunta }}">N/A</label>
+                                                </div>
+                                            </div>
+                                            <div class="mb-2" {% if pregunta.user_respuesta != 'na' %}style="display:none"{% endif %} id="fundamentacion-box-{{ pregunta.numero_pregunta }}">
+                                                <textarea class="form-control form-control-sm" name="fundamentacion_{{ pregunta.numero_pregunta }}" placeholder="Fundamentación (solo para N/A)">{{ pregunta.user_fundamentacion|default_if_none:"" }}</textarea>
+                                            </div>
+                                            <script>
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                var radios = document.querySelectorAll('input[name="respuesta_{{ pregunta.numero_pregunta }}"]');
+                                                radios.forEach(function(radio) {
+                                                    radio.addEventListener('change', function() {
+                                                        var box = document.getElementById('fundamentacion-box-{{ pregunta.numero_pregunta }}');
+                                                        if (this.value === 'na' && this.checked) {
+                                                            box.style.display = '';
+                                                        } else if (this.checked) {
+                                                            box.style.display = 'none';
+                                                        }
+                                                    });
+                                                });
+                                            });
+                                            </script>
+                                        </div>
+                                        <div class="completion-indicator {% if pregunta.user_respuesta %}completed{% endif %}">
+                                            {% if pregunta.user_respuesta %}<i class="fas fa-check"></i>{% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">Guardar todas las respuestas</button>
+                </div>
+            </form>
+            {% else %}
+                <div class="alert alert-warning text-center" role="alert">
+                    <h4 class="alert-heading">¡Ups!</h4>
+                    <p>No se pudieron extraer las preguntas de esta guía o la guía no tiene contenido procesable.</p>
+                    <hr>
+                    <p class="mb-0">Por favor, contacte al administrador si el problema persiste.</p>
+                </div>
+            {% endif %}
+            <div class="text-center mt-4">
+                <a href="{% url 'guia:lista' %}" class="btn btn-secondary">Volver a la lista de guías</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

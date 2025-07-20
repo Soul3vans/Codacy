@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}Mi Perfil - GAU{% endblock %}
+
+{% block description %}Gestiona tu información personal y configuración de cuenta{% endblock %}
+
+{% block extra_css %}
+
+{% endblock %}
+
+{% block content %}
+
+<section class="profile-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-4 text-center">
+                <div class="profile-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <h1 class="mb-3">
+                    {{ user.get_full_name|default:user.username }}
+                    {% if user_profile.es_admin %} {# Use user_profile here #}
+                        <span class="admin-badge ms-2">Administrador</span>
+                    {% elif user_profile.es_moderador %} {# Use user_profile here #}
+                        <span class="moderador-badge ms-2">Moderador</span>
+                    {% endif %}
+                </h1>
+                <p class="lead mb-2">@{{ user.username }}</p>
+                <p class="mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    Miembro desde {{ user.date_joined|date:"F Y" }}
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card profile-card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-edit me-2"></i>
+                        Información Personal
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <h4>Información de la Cuenta</h4>
+                    <hr>
+                    <p><strong>Usuario:</strong> {{ user.username }}</p>
+                    <p><strong>Nombre completo:</strong> {{ user.get_full_name }}</p>
+                    <p><strong>Correo electrónico:</strong> {{ user.email }}</p>
+                    <p><strong>Miembro desde:</strong> {{ user.date_joined|date:"d M, Y" }}</p>
+                    
+                    <h4 class="mt-4">Detalles del Perfil</h4>
+                    <hr>
+                    <p><strong>Teléfono:</strong> {{ user_profile.telefono|default:"No especificado" }}</p>
+                    <p><strong>Sede Universitaria:</strong> {{ user_profile.get_cede_display|default:"No especificada" }}</p>
+                    <p><strong>Cargo:</strong> {{ user_profile.cargo|default:"No especificado" }}</p>
+                
+                    <div class="mt-3">
+                        <p>
+                            <strong>Recibir notificaciones por email:</strong>
+                            {% if user_profile.recibir_notificaciones %}
+                                <span class="badge bg-success">Sí</span>
+                            {% else %}
+                                <span class="badge bg-danger">No</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                
+                    <div class="mt-3">
+                        <p><strong>Firma Digital:</strong></p>
+                        {% if user_profile.firma_digital %}
+                            <div class="mb-2">
+                                <p><strong>Estado:</strong> Subida</p>
+                                {# Muestra una vista previa si es una imagen, si no, un enlace de descarga #}
+                                {% if user_profile.firma_digital.name|lower|slice:"-4:" in ".png.jpg.jpeg.gif" %}
+                                    <img src="{{ user_profile.firma_digital.url }}" alt="Firma Digital" class="img-thumbnail" style="max-height: 200px;">
+                                {% else %}
+                                    <a href="{{ user_profile.firma_digital.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-file me-1"></i> Ver archivo
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <p><strong>Estado:</strong> No se ha subido ninguna firma.</p>
+                        {% endif %}
+                    </div>
+                
+                    <div class="text-center mt-4">
+                        <a href="{% url 'editar_perfil' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-edit me-2"></i> Editar Perfil
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            {% if user_profile.puede_editar %} {# Use user_profile here #}
+            <div class="stats-card">
+                <div class="stats-number">{{ posts_count|default:0 }}</div>
+                <div>Posts Publicados</div>
+            </div>
+            {% endif %}
+            
+            <div class="card profile-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Información de Cuenta
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Último acceso:</strong><br>
+                    {{ user.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</p>
+                    
+                    <p><strong>Fecha de registro:</strong><br>
+                    {{ user.date_joined|date:"d/m/Y H:i" }}</p>
+                    
+                    {% if user_profile.es_admin %} {# Use user_profile here #}
+                        <p><strong>Permisos:</strong><br>
+                        <span class="text-danger">Administrador</span></p>
+                    {% elif user_profile.es_moderador %} {# Use user_profile here #}
+                        <p><strong>Permisos:</strong><br>
+                        <span class="text-primary">Moderador</span></p>
+                    {% else %}
+                        <p><strong>Permisos:</strong><br>
+                        <span class="text-muted">Usuario</span></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="passwordModalLabel">
+                    <i class="fas fa-key me-2"></i>Cambiar Contraseña
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'cambiar_password' %}">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="old_password" class="form-label">Contraseña actual</label>
+                        <input type="password" class="form-control" id="old_password" name="old_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_password1" class="form-label">Nueva contraseña</label>
+                        <input type="password" class="form-control" id="new_password1" name="new_password1" required>
+                        <div class="form-text">
+                            <small>
+                                <i class="fas fa-info-circle me-1"></i>
+                                Mínimo 8 caracteres, debe incluir letras y números.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_password2" class="form-label">Confirmar nueva contraseña</label>
+                        <input type="password" class="form-control" id="new_password2" name="new_password2" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-change-password">
+                        <i class="fas fa-save me-2"></i>Cambiar Contraseña
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Validation for password change form (keep as is)
+document.querySelector('#passwordModal form').addEventListener('submit', function(e) {
+    const newPassword1 = document.getElementById('new_password1').value;
+    const newPassword2 = document.getElementById('new_password2').value;
+    
+    if (newPassword1 !== newPassword2) {
+        e.preventDefault();
+        alert('Las contraseñas no coinciden. Por favor, verifica e intenta nuevamente.');
+        return false;
+    }
+    
+    if (newPassword1.length < 8) {
+        e.preventDefault();
+        alert('La contraseña debe tener al menos 8 caracteres.');
+        return false;
+    }
+});
+</script>
+{% endblock %}
