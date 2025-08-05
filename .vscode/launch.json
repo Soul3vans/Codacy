@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Django Debug-linux",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/CODACY/manage.py",
+            "args": ["runserver", "--noreload"],
+            "django": true,
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/CODACY",
+            "python": "${workspaceFolder}/environ/bin/python"
+        },
+        {
+            "name": "Django Debug-Windows",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/infoweb/manage.py",
+            "args": ["runserver", "--noreload"],
+            "django": true,
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/infoweb",
+            "python": "${workspaceFolder}/env/Scripts/python"
+        }
+    ]
+}
+

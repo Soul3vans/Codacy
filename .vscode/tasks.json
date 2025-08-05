@@ -1,0 +1,11 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "Probar extracción de cuestionario de Guía de Autocontrol",
+			"command": "python manage.py shell -c \"from apps.guia.models import GuiaAutocontrol; g=GuiaAutocontrol.objects.first(); g.extraer_contenido_archivo(); print(g.componente, g.proposito, g.contenido_procesado.get('tablas_cuestionario'))\"",
+			"group": "test"
+		}
+	]
+}

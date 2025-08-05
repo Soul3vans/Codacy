@@ -5,8 +5,8 @@ git clone https://github.com/Soul3vans/Codacy.git
 
 **(1)**
 Luego tienes que crear un entorno virtual
-python -m venv venv
-Para Linux: source venv/bin/activate
+python -m venv {venv}
+Para Linux: source environ/bin/activate
 Para windows: .\venv\Scripts\activate
 
 **(2)**
