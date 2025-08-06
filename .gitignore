@@ -17,6 +17,8 @@ parts/
 sdist/
 var/
 pip-wheel-metadata/
+staticfiles/
+.installed.cfg
 #share/python-wheels/
 *.egg-info/
 .installed.cfg
@@ -78,6 +80,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+environ/
 
 # secrets config
 secrets.json
