@@ -22,6 +22,9 @@ class Perfil(models.Model):
     puede_editar = models.BooleanField(default=False, help_text='Si el usuario puede editar contenido')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     last_activity = models.DateTimeField(auto_now=True)
+    recovery_code = models.CharField(max_length=64, blank=True, null=True)
+    recovery_code_expiry = models.DateTimeField(blank=True, null=True, help_text='Fecha de expiración del código de recuperación')
+    recovery_code_used = models.BooleanField(default=False, help_text='Indica si el código de recuperación ya fue usado')
     firma_digital = models.FileField(upload_to='firmas/', blank=True, null=True)
     class Meta:
         verbose_name = 'Perfil'
@@ -68,6 +71,13 @@ class Perfil(models.Model):
         if self.avatar and os.path.exists(self.avatar.path):
             os.remove(self.avatar.path)
         super().delete(*args, **kwargs)
+
+class PasswordResetAudit(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    action = models.CharField(max_length=20)  # 'request' o 'reset'
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
 class Archivo(models.Model):
     """Modelo para gestión de archivos"""
     TIPOS_ARCHIVO = [

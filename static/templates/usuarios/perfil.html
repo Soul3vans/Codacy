@@ -97,6 +97,11 @@
                             <i class="fas fa-edit me-2"></i> Editar Perfil
                         </a>
                     </div>
+                    <div class="text-center mt-4">
+                        <a href="#passwordModal form" class="btn btn-primary btn-lg">
+                            <i class="fas fa-asterisk me-2"></i> Cambiar Contraseña
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -148,7 +153,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="post" action="{% url 'cambiar_password' %}">
+            <form method="post" action="{% url 'password_reset_request' %}">
                 <div class="modal-body">
                     {% csrf_token %}
                     <div class="mb-3">
