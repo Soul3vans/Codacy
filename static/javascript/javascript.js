@@ -50,18 +50,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordForm = document.querySelector('#passwordModal form');
     if (passwordForm) {
         passwordForm.addEventListener('submit', function(e) {
+            // Elimina mensajes previos
+            const modalDialog = document.querySelector('#passwordModal .modal-dialog');
+            const prevAlerts = modalDialog.querySelectorAll('.alert.alert-danger');
+            prevAlerts.forEach(alert => alert.remove());
+
             const newPassword1 = document.getElementById('new_password1').value;
             const newPassword2 = document.getElementById('new_password2').value;
-            
+            let errorMsg = '';
             if (newPassword1 !== newPassword2) {
-                e.preventDefault();
-                alert('Las contraseñas no coinciden. Por favor, verifica e intenta nuevamente.');
-                return false;
+                errorMsg = 'Las contraseñas no coinciden. Por favor, verifica e intenta nuevamente.';
+            } else if (newPassword1.length < 8) {
+                errorMsg = 'La contraseña debe tener al menos 8 caracteres.';
             }
-            
-            if (newPassword1.length < 8) {
+            if (errorMsg) {
                 e.preventDefault();
-                alert('La contraseña debe tener al menos 8 caracteres.');
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger';
+                alertDiv.innerText = errorMsg;
+                modalDialog.prepend(alertDiv);
                 return false;
             }
         });

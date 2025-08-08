@@ -4,12 +4,20 @@
 #
 #    pip-compile requirements/dev.in
 #
+amqp==5.3.1
+    # via kombu
 asgiref==3.8.1
     # via django
+billiard==4.2.1
+    # via celery
 black==25.1.0
     # via -r requirements/dev.in
 build==1.2.2.post1
     # via pip-tools
+celery==5.5.3
+    # via
+    #   -r D:\Estudiante\Codacy\requirements\base.in
+    #   -r requirements/dev.in
 certifi==2025.6.15
     # via requests
 charset-normalizer==3.4.2
@@ -19,7 +27,17 @@ charset-normalizer==3.4.2
 click==8.2.1
     # via
     #   black
+    #   celery
+    #   click-didyoumean
+    #   click-plugins
+    #   click-repl
     #   pip-tools
+click-didyoumean==0.3.1
+    # via celery
+click-plugins==1.1.1.2
+    # via celery
+click-repl==0.3.0
+    # via celery
 colorama==0.4.6
     # via
     #   build
@@ -28,10 +46,10 @@ colorama==0.4.6
 coverage==7.9.1
     # via -r requirements/dev.in
 crispy-bootstrap4==2025.6
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 django==4.2.23
     # via
-    #   -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    #   -r D:\Estudiante\Codacy\requirements\base.in
     #   crispy-bootstrap4
     #   django-appconf
     #   django-crispy-forms
@@ -43,21 +61,21 @@ django-appconf==1.1.0
     # via django-select2
 django-crispy-forms==2.4
     # via
-    #   -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    #   -r D:\Estudiante\Codacy\requirements\base.in
     #   crispy-bootstrap4
 django-debug-toolbar==5.2.0
     # via -r requirements/dev.in
 django-environ==0.12.0
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 django-filter==25.1
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 django-select2==8.4.1
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 django-version-checks==1.14.0
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 editdistpy==0.1.6
     # via
-    #   -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    #   -r D:\Estudiante\Codacy\requirements\base.in
     #   symspellpy
 flake8==7.2.0
     # via -r requirements/dev.in
@@ -67,6 +85,8 @@ iniconfig==2.1.0
     # via pytest
 isort==6.0.1
     # via -r requirements/dev.in
+kombu==5.5.4
+    # via celery
 lxml==5.4.0
     # via python-docx
 mccabe==0.7.0
@@ -78,19 +98,22 @@ packaging==25.0
     #   black
     #   build
     #   django-version-checks
+    #   kombu
     #   pytest
 pathspec==0.12.1
     # via black
 pillow==11.2.1
     # via
-    #   -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    #   -r D:\Estudiante\Codacy\requirements\base.in
     #   reportlab
 pip-tools==7.4.1
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 platformdirs==4.3.8
     # via black
 pluggy==1.6.0
     # via pytest
+prompt-toolkit==3.0.51
+    # via click-repl
 pycodestyle==2.13.0
     # via flake8
 pyflakes==3.3.2
@@ -98,7 +121,7 @@ pyflakes==3.3.2
 pygments==2.19.1
     # via pytest
 pypdf2==3.0.1
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 pyproject-hooks==1.2.0
     # via
     #   build
@@ -109,24 +132,37 @@ pytest==8.4.0
     #   pytest-django
 pytest-django==4.11.1
     # via -r requirements/dev.in
+python-dateutil==2.9.0.post0
+    # via celery
 python-docx==1.1.2
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 reportlab==4.4.2
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 requests==2.32.4
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
+six==1.17.0
+    # via python-dateutil
 sqlparse==0.5.3
     # via
     #   django
     #   django-debug-toolbar
 symspellpy==6.9.0
-    # via -r D:\Estudiante\infoweb\infoweb\requirements\base.in
+    # via -r D:\Estudiante\Codacy\requirements\base.in
 typing-extensions==4.14.0
     # via python-docx
 tzdata==2025.2
-    # via django
+    # via
+    #   django
+    #   kombu
 urllib3==2.4.0
     # via requests
+vine==5.1.0
+    # via
+    #   amqp
+    #   celery
+    #   kombu
+wcwidth==0.2.13
+    # via prompt-toolkit
 wheel==0.45.1
     # via pip-tools
 

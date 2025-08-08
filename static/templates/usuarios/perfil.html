@@ -98,9 +98,9 @@
                         </a>
                     </div>
                     <div class="text-center mt-4">
-                        <a href="#passwordModal form" class="btn btn-primary btn-lg">
-                            <i class="fas fa-asterisk me-2"></i> Cambiar Contraseña
-                        </a>
+                        <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#passwordModal">
+                            <i class="fas fa-save me-2"></i> Cambiar Contraseña
+                        </button>
                     </div>
                 </div>
             </div>
@@ -146,6 +146,13 @@
 
 <div class="modal fade" id="passwordModal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
     <div class="modal-dialog">
+        {% if messages %}
+        <div class="alert alert-danger">
+            {% for message in messages %}
+                {{ message }}
+            {% endfor %}
+        </div>
+        {% endif %}
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="passwordModalLabel">
@@ -153,7 +160,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="post" action="{% url 'password_reset_request' %}">
+            <form method="post" action="{% url 'perfil' %}">
                 <div class="modal-body">
                     {% csrf_token %}
                     <div class="mb-3">
@@ -188,23 +195,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// Validation for password change form (keep as is)
-document.querySelector('#passwordModal form').addEventListener('submit', function(e) {
-    const newPassword1 = document.getElementById('new_password1').value;
-    const newPassword2 = document.getElementById('new_password2').value;
-    
-    if (newPassword1 !== newPassword2) {
-        e.preventDefault();
-        alert('Las contraseñas no coinciden. Por favor, verifica e intenta nuevamente.');
-        return false;
-    }
-    
-    if (newPassword1.length < 8) {
-        e.preventDefault();
-        alert('La contraseña debe tener al menos 8 caracteres.');
-        return false;
-    }
-});
-</script>
+
 {% endblock %}

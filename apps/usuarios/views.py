@@ -66,6 +66,103 @@ def actualizar_perfil(request):
         'user_form': user_form,
         'profile_form': profile_form,
     })
+    
+@login_required
+def cambiar_password(request):
+    """Vista para cambiar la contraseña del usuario."""
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, 'Tu contraseña ha sido cambiada correctamente.')
+            return redirect('perfil')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if 'old_password' in field:
+                        messages.error(request, 'La contraseña actual es incorrecta.')
+                    elif 'new_password2' in field:
+                        messages.error(request, 'Las contraseñas nuevas no coinciden.')
+                    elif 'new_password1' in field:
+                        messages.error(request, 'La nueva contraseña no cumple con los requisitos de seguridad.')
+                    else:
+                        messages.error(request, f'Error: {error}')
+
+    return redirect('perfil')
+
+def password_reset_request(request):
+    if request.method == "POST":
+        email = request.POST.get('email')
+        try:
+            user = User.objects.get(email=email)
+            perfil = user.perfil
+            # Generar un código único y su expiración
+            recovery_code = secrets.token_urlsafe(32)
+            code_expiry = timezone.now() + timedelta(minutes=30)  # 30 minutos de validez
+
+            # Guardar el código y expiración en el perfil
+            perfil.recovery_code = recovery_code
+            perfil.recovery_code_expiry = code_expiry
+            perfil.recovery_code_used = False
+            perfil.save()
+
+            # Registrar auditoría
+            PasswordResetAudit.objects.create(
+                user=user,
+                action='request',
+                ip=request.META.get('REMOTE_ADDR'),
+                timestamp=timezone.now(),
+            )
+
+            # Enviar el código por correo electrónico
+            send_mail(
+                'Recuperación de Contraseña',
+                f'Tu código de recuperación es: {recovery_code}',
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+            messages.success(request, "Se ha enviado un código de recuperación a tu correo.")
+            return redirect('password_reset_confirm', uidb64=user.id, token=recovery_code)
+        except User.DoesNotExist:
+            return render(request, 'registration/password_reset_request.html', {'error_message': 'El correo electrónico no está registrado.'})
+
+    return render(request, 'registration/password_reset_request.html')
+
+def password_reset_confirm(request, uidb64, token):
+    try:
+        user = User.objects.get(id=uidb64)
+        perfil = user.perfil
+        # Verificar código, expiración y si ya fue usado
+        if (perfil.recovery_code == token and
+            not perfil.recovery_code_used and
+            perfil.recovery_code_expiry and
+            timezone.now() < perfil.recovery_code_expiry):
+
+            if request.method == "POST":
+                new_password = request.POST.get('new_password')
+                user.set_password(new_password)
+                user.save()
+                # Marcar el código como usado
+                perfil.recovery_code_used = True
+                perfil.save()
+                # Registrar auditoría
+                PasswordResetAudit.objects.create(
+                    user=user,
+                    action='reset',
+                    ip=request.META.get('REMOTE_ADDR'),
+                    timestamp=timezone.now(),
+                )
+                messages.success(request, "Contraseña restablecida correctamente.")
+                return redirect('login')
+            return render(request, 'registration/password_reset_confirm.html', {'valid': True})
+        else:
+            messages.error(request, "El código es inválido, ya fue usado o ha expirado.")
+            return render(request, 'registration/password_reset_confirm.html', {'valid': False})
+    except User.DoesNotExist:
+        messages.error(request, "Usuario no encontrado.")
+        return redirect('password_reset_request')
 
 def es_admin(user):
     """Verifica si el usuario es administrador."""
@@ -353,75 +450,3 @@ def debug_user_info(request, user_id):
         messages.error(request, 'Error al cargar los detalles del usuario.')
         return redirect('gestionar_usuarios')
 
-def password_reset_request(request):
-    if request.method == "POST":
-        email = request.POST.get('email')
-        try:
-            user = User.objects.get(email=email)
-            profile = user.profile
-            # Generar un código único y su expiración
-            recovery_code = secrets.token_urlsafe(32)
-            code_expiry = timezone.now() + timedelta(minutes=30)  # 30 minutos de validez
-
-            # Guardar el código y expiración en el perfil
-            profile.recovery_code = recovery_code
-            profile.recovery_code_expiry = code_expiry
-            profile.recovery_code_used = False
-            profile.save()
-
-            # Registrar auditoría
-            PasswordResetAudit.objects.create(
-                user=user,
-                action='request',
-                ip=request.META.get('REMOTE_ADDR'),
-                timestamp=timezone.now(),
-            )
-
-            # Enviar el código por correo electrónico
-            send_mail(
-                'Recuperación de Contraseña',
-                f'Tu código de recuperación es: {recovery_code}',
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
-            )
-            messages.success(request, "Se ha enviado un código de recuperación a tu correo.")
-            return redirect('password_reset_confirm', uidb64=user.id, token=recovery_code)
-        except User.DoesNotExist:
-            return render(request, 'password_reset_request.html', {'error_message': 'El correo electrónico no está registrado.'})
-
-    return render(request, 'registration/password_reset_request.html')
-
-def password_reset_confirm(request, uidb64, token):
-    try:
-        user = User.objects.get(id=uidb64)
-        profile = user.profile
-        # Verificar código, expiración y si ya fue usado
-        if (profile.recovery_code == token and
-            not profile.recovery_code_used and
-            profile.recovery_code_expiry and
-            timezone.now() < profile.recovery_code_expiry):
-
-            if request.method == "POST":
-                new_password = request.POST.get('new_password')
-                user.set_password(new_password)
-                user.save()
-                # Marcar el código como usado
-                profile.recovery_code_used = True
-                profile.save()
-                # Registrar auditoría
-                PasswordResetAudit.objects.create(
-                    user=user,
-                    action='reset',
-                    ip=request.META.get('REMOTE_ADDR'),
-                    timestamp=timezone.now(),
-                )
-                messages.success(request, "Contraseña restablecida correctamente.")
-                return redirect('login')
-            return render(request, 'password_reset_confirm.html', {'valid': True})
-        else:
-            messages.error(request, "El código es inválido, ya fue usado o ha expirado.")
-            return render(request, 'password_reset_confirm.html', {'valid': False})
-    except User.DoesNotExist:
-        messages.error(request, "Usuario no encontrado.")
-        return redirect('password_reset_request')
