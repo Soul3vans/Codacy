@@ -201,7 +201,8 @@ SESSION_SAVE_EVERY_REQUEST = True
 # Puedes establecerlo en True para que siempre expire al cerrar el navegador
 # si no hay una opción "recordarme" o si quieres forzarlo.
 # Si quieres que dure 30 minutos INCLUSO si cierran el navegador, ponlo en False.
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True # O False, dependiendo del comportamiento deseado para "recordarme"
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True 
+# O False, dependiendo del comportamiento deseado para "recordarme"
 
 # Forzar el backend de mensajes a usar la sesión
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
