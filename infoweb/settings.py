@@ -148,7 +148,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configuración de crispy-forms
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
-CRISPY_TEMPLATE_PACK = 'bootstrap4'  # O 'bootstrap5' si usas Bootstrap 5
+CRISPY_TEMPLATE_PACK = 'bootstrap4' # O 'bootstrap5' si usas Bootstrap 5
 
 # Configuraciones de seguridad
 SECURE_BROWSER_XSS_FILTER = True
@@ -197,11 +197,14 @@ SESSION_COOKIE_AGE = 60 * 30 # 30 minutos
 # Actualizar la fecha de caducidad de la sesión con cada solicitud
 SESSION_SAVE_EVERY_REQUEST = True
 
-# La sesión expira cuando se cierra el navegador (para sesiones no "recordarme")
-# Puedes establecerlo en True para que siempre expire al cerrar el navegador
+# La sesión expira cuando se cierra el navegador 
+# (para sesiones no "recordarme")
+# Puedes establecerlo en True para que siempre expire al cerrar 
+# el navegador
 # si no hay una opción "recordarme" o si quieres forzarlo.
-# Si quieres que dure 30 minutos INCLUSO si cierran el navegador, ponlo en False.
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True 
+# Si quieres que dure 30 minutos INCLUSO si cierran el navegador, 
+# ponlo en False.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # O False, dependiendo del comportamiento deseado para "recordarme"
 
 # Forzar el backend de mensajes a usar la sesión
