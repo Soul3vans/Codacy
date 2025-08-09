@@ -50,9 +50,8 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     'apps.guia.apps.GuiaConfig',  # <--- THIS LINE IS CRITICAL
-    'apps.dashboard.apps.DashboardConfig', # Assuming this is another app
-    'apps.core.apps.CoreConfig', # Assuming this is another app
-    'apps.usuarios.apps.UsuariosConfig', # Assuming this is another app
+    'apps.dashboard.apps.DashboardConfig',
+    'apps.usuarios.apps.UsuariosConfig',
     # ... any other local apps ...
 ]
 
