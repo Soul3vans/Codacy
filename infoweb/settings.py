@@ -197,12 +197,12 @@ SESSION_COOKIE_AGE = 60 * 30 # 30 minutos
 # Actualizar la fecha de caducidad de la sesión con cada solicitud
 SESSION_SAVE_EVERY_REQUEST = True
 
-# La sesión expira cuando se cierra el navegador 
+# La sesión expira cuando se cierra el navegador
 # (para sesiones no "recordarme")
-# Puedes establecerlo en True para que siempre expire al cerrar 
+# Puedes establecerlo en True para que siempre expire al cerrar
 # el navegador
 # si no hay una opción "recordarme" o si quieres forzarlo.
-# Si quieres que dure 30 minutos INCLUSO si cierran el navegador, 
+# Si quieres que dure 30 minutos INCLUSO si cierran el navegador,
 # ponlo en False.
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # O False, dependiendo del comportamiento deseado para "recordarme"
