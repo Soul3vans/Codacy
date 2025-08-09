@@ -1,8 +1,8 @@
 from django import forms
 from django.forms.widgets import Select
 from django.contrib.auth.forms import UserCreationForm
+from django.forms import ChoiceField
 from django.contrib.auth.models import User
-from apps.core.forms import ChoiceField as EmptyChoiceField
 from django.core.exceptions import ValidationError
 from .models import Archivo, Perfil, CedeChoice
 
@@ -21,9 +21,9 @@ class RegistroForm(UserCreationForm):
         required=False,
         label='Teléfono'
     )
-    cede = EmptyChoiceField(
-        empty_label="Seleccionar Cede Universitaria",
-        choices=CedeChoice.choices,
+    cede = ChoiceField(
+        choices=[('', "Seleccionar Cede Universitaria")] +
+        list(CedeChoice.choices),
         widget=Select(attrs={"class": "form-control form-select"}),
         label="Cede",
         required=True,
