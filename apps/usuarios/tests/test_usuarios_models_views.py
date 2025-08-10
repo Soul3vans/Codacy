@@ -1,3 +1,7 @@
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'infoweb.settings')
+django.setup()
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
@@ -65,6 +69,11 @@ class PerfilViewsTest(TestCase):
             'cargo': 'Nuevo Cargo',
             'recibir_notificaciones': True,
         })
+        if response.status_code == 400:
+            # Imprime errores de formulario para depuración
+            print('user_form errors:', getattr(response.context.get('user_form'), 'errors', None))
+            print('profile_form errors:', getattr(response.context.get('profile_form'), 'errors', None))
+            print('content:', response.content.decode())
         self.assertEqual(response.status_code, 302)
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name, 'NuevoNombre')

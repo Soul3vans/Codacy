@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-*!*^%*w$a^pyc%gztr2)fc=04o)fw#06j7$4&nto&ev8_0!cd=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
 
 
 # Application definition
@@ -73,8 +73,8 @@ ROOT_URLCONF = 'infoweb.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'static/templates'],
-        'APP_DIRS': True,
+        'DIRS': [BASE_DIR, 'static/templates'],
+        'APP_DIRS': False,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',

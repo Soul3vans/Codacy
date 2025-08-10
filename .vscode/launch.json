@@ -10,7 +10,7 @@
             "django": true,
             "justMyCode": false,
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/CODACY",
+            "cwd": "${workspaceFolder}/infoweb",
             "python": "${workspaceFolder}/environ/bin/python"
         },
         {
