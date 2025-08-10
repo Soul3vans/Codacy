@@ -23,7 +23,7 @@
             "justMyCode": false,
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/infoweb",
-            "python": "${workspaceFolder}/env/Scripts/python"
+            "python": "${workspaceFolder}/venv/Scripts/python"
         }
     ]
 }
