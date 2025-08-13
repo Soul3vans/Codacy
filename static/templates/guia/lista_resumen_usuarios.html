@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Resumen de Usuarios{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Resumen General de Usuarios</h1>
+    
+    {% if usuarios %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th scope="col">Usuario</th>
+                    <th scope="col" class="text-center">Total Guías Realizadas</th>
+                    <th scope="col" class="text-center">Completadas</th>
+                    <th scope="col" class="text-center">En Progreso</th>
+                    <th scope="col" class="text-center">Faltan por Completar</th>
+                    <th scope="col">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in usuarios %}
+                <tr>
+                    <td>{{ usuario.username }}</td>
+                    <td class="text-center">{{ usuario.total_evaluaciones }}</td>
+                    <td class="text-center">{{ usuario.completadas }}</td>
+                    <td class="text-center">{{ usuario.en_progreso }}</td>
+                    <td class="text-center">{{ usuario.pendientes }}</td>
+                    <td>
+                        <a href="{% url 'guia:resumen_usuario_guias_detalle' usuario.id %}" class="btn btn-primary btn-sm">Ver Resumen</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        No se encontraron usuarios registrados.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,8 +1,11 @@
+from pickle import TRUE
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.db import transaction
+from django.db.models import Count, Q
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.views.generic import ListView
@@ -23,6 +26,7 @@ import os
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 class GuiaListView(LoginRequiredMixin, ListView):
     """
@@ -419,6 +423,87 @@ def crear_guias_desde_archivos():
 def archivo_guia_view(request):
     archivos = Archivo.objects.all().order_by('-fecha_subida')
     return render(request, 'guia/archivo_guia.html', {'archivos': archivos})
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def lista_resumen_usuarios(request):
+    """
+    Vista principal para que el administrador obtenga una lista de todos los usuarios
+    con un resumen de sus guías respondidas.
+    """
+    total_guias = GuiaAutocontrol.objects.count()
+    
+    usuarios = User.objects.annotate(
+        total_evaluaciones=Count('evaluaciones_guias'),
+        completadas=Count('evaluaciones_guias', filter=Q(evaluaciones_guias__estado='completada')),
+        en_progreso=Count('evaluaciones_guias', filter=Q(evaluaciones_guias__estado='en_progreso')),
+    )
+
+    # Calcular las guías que faltan por completar para cada usuario
+    for usuario in usuarios:
+        usuario.pendientes = total_guias - usuario.total_evaluaciones
+
+    context = {
+        'usuarios': usuarios,
+    }
+    
+    return render(request, 'guia/lista_resumen_usuarios.html', context)
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def resumen_usuario_guias_detalle(request, user_id):
+    """
+    Vista detallada para mostrar el resumen de cada guía de un usuario específico.
+    """
+    usuario_a_revisar = get_object_or_404(User, pk=user_id)
+    
+    # Obtener todas las guías
+    guias_existentes = GuiaAutocontrol.objects.all()
+    
+    # Obtener las evaluaciones de un usuario
+    evaluaciones_usuario = {evaluacion.guia_id: evaluacion for evaluacion in EvaluacionGuia.objects.filter(usuario=usuario_a_revisar)}
+    
+    # Preparar el resumen de guías para el template
+    resumen_guias = []
+    for guia in guias_existentes:
+        evaluacion = evaluaciones_usuario.get(guia.id)
+        
+        if evaluacion:
+            estado = evaluacion.get_estado_display()
+            if estado == 'Completada':
+                # Si la guía está completada, obtenemos las estadísticas
+                estadisticas = {
+                    'total_preguntas': guia.total_preguntas,
+                    'si': evaluacion.respuestas_si,
+                    'no': evaluacion.respuestas_no,
+                    'na': evaluacion.respuestas_na,
+                    'pendientes': guia.total_preguntas - (evaluacion.respuestas_si + evaluacion.respuestas_no + evaluacion.respuestas_na)
+                }
+            else:
+                estadisticas = {
+                    'total_preguntas': guia.total_preguntas,
+                    'si': evaluacion.respuestas_si,
+                    'no': evaluacion.respuestas_no,
+                    'na': evaluacion.respuestas_na,
+                    'pendientes': guia.total_preguntas - (evaluacion.respuestas_si + evaluacion.respuestas_no + evaluacion.respuestas_na)
+                }
+        else:
+            estado = 'Sin Empezar'
+            estadisticas = None
+            
+        resumen_guias.append({
+            'titulo': guia.titulo_guia,
+            'componente': guia.componente,
+            'estado': estado,
+            'estadisticas': estadisticas,
+        })
+    
+    context = {
+        'usuario_a_revisar': usuario_a_revisar,
+        'resumen_guias': resumen_guias,
+    }
+    
+    return render(request, 'guia/resumen_usuario_guias_detalle.html', context)
 
 @login_required
 def generar_pdf_guia(request, pk):

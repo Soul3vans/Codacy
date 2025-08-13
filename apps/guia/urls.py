@@ -13,6 +13,9 @@ urlpatterns = [
     path('guia/<int:guia_pk>/completar/', views.completar_evaluacion, name='completar_evaluacion'),
     # Resumen de evaluación
     path('evaluacion/<int:pk>/resumen/', views.resumen_evaluacion, name='resumen_evaluacion'),
+    # Resumen de evaluacion por usuario
+    path('admin/resumen/usuarios/', views.lista_resumen_usuarios, name='lista_resumen_usuarios'),
+    path('admin/resumen/usuario/<int:user_id>/', views.resumen_usuario_guias_detalle, name='resumen_usuario_guias_detalle'),
     # Mis evaluaciones
     path('mis-evaluaciones/', views.mis_evaluaciones, name='mis_evaluaciones'),
     # Procesar archivo para crear guía
