@@ -1,5 +1,4 @@
 import re
-import json
 from docx import Document
 
 def limpiar_texto(texto):

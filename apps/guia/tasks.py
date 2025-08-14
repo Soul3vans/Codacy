@@ -1,5 +1,4 @@
 from celery import shared_task
-from django.conf import settings
 from .models import GuiaAutocontrol, EvaluacionGuia, RespuestaGuia
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.pagesizes import A4

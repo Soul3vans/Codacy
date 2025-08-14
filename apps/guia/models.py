@@ -529,4 +529,3 @@ class EvaluacionGuia(models.Model):
             },
             'por_componente': self.guia.generar_resumen_evaluacion(self.usuario_id)['por_componente']
         }
-        return informe

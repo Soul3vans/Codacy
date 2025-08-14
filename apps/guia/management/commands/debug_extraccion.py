@@ -156,9 +156,9 @@ class Command(BaseCommand):
                     if 'error' in guia.contenido_procesado:
                         self.stdout.write(self.style.ERROR(f"Error guardado: {guia.contenido_procesado['error']}"))
                     
-                    if deep and preguntas:
+                    if deep and 'preguntas':
                         self.stdout.write("\nPRIMERAS 3 PREGUNTAS:")
-                        for i, p in enumerate(preguntas[:3]):
+                        for i, p in enumerate('preguntas'[:3]):
                             self.stdout.write(f"{i+1}. Num: {p.get('numero')}, Cat: {p.get('categoria')}")
                             self.stdout.write(f"   Texto: {p.get('texto', '')[:100]}...")
                 

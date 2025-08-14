@@ -71,7 +71,6 @@ class GuiaSignalsTest(TestCase):
     def test_signal_crear_guia_autocontrol(self):
         # Simula la creación de un archivo con es_formulario=True
         # El signal de dashboard debería crear GuiaAutocontrol automáticamente
-        from apps.guia.models import GuiaAutocontrol
         self.assertTrue(GuiaAutocontrol.objects.filter(archivo=self.archivo).exists())
 
 # Puedes agregar más tests para métodos de procesamiento y API de GuiaAutocontrol si lo necesitas.

@@ -1,4 +1,4 @@
-from pickle import TRUE
+"Views para las guias"
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
@@ -10,8 +10,7 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.views.generic import ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Avg
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
@@ -582,7 +581,6 @@ def generar_pdf_guia(request, pk):
     temp_img_path = None
     if user_firma and hasattr(user_firma, 'path') and hasattr(user_firma, 'url'):
         try:
-            import os
             from PIL import Image as PILImage
             if os.path.exists(user_firma.path):
                 # Redimensionar y comprimir la imagen antes de insertarla

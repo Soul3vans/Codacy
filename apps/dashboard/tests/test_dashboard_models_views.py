@@ -7,9 +7,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from ..models import Archivo, EnlaceInteres
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db.models.signals import post_save
-from django.dispatch import Signal
-from apps.dashboard import signals as dashboard_signals
+
 
 class DashboardViewsTestCase(TestCase):
     def setUp(self):
