@@ -199,94 +199,148 @@ class GuiaAutocontrol(models.Model):
         """Helper para crear un diccionario seguro para contenido_procesado."""
         return {'error': error} if error else {}
     
+    def _es_fila_vacia(self, celdas):
+        """Verifica si una fila está vacía."""
+        return not any(c for c in celdas if c)
+
+    def _es_fila_encabezado_cuestionario(self, celdas):
+        """Verifica si la fila es el encabezado de un cuestionario."""
+        return any("ASPECTOS A VERIFICAR" in c.upper() for c in celdas if c)
+
+    def _es_fila_de_componente(self, celdas):
+        """Verifica si la fila define un nuevo componente."""
+        return len(celdas) >= 3 and len(set(c for c in celdas if c)) == 1 and celdas[0]
+
+    def _es_fila_de_bloque(self, celdas):
+        """Verifica si la fila define un nuevo bloque de preguntas."""
+        return any(re.search(r":\s*$", c) for c in celdas if c)
+
+    def _obtener_texto_encabezado(self, celdas):
+        """Obtiene el texto del encabezado de la fila."""
+        for celda in celdas:
+            if re.search(r":\s*$", celda):
+                return self._limpiar_texto(celda)
+        return None
+
+    def _obtener_pregunta(self, celdas, contador_preguntas):
+        """Extrae la pregunta de la fila y actualiza el contador."""
+        if len(celdas) > 1:
+            texto_celda = celdas[1].strip()
+            if re.match(r"^\d+\.?\s*.+", texto_celda):
+                texto_pregunta = re.sub(r"^\d+\.?\s*", "", texto_celda).strip()
+                contador_preguntas += 1
+                return {
+                    "numero_pregunta": contador_preguntas,
+                    "texto": texto_pregunta
+                }, contador_preguntas
+        return None, contador_preguntas
+    
     def _parsear_tabla_docx(self, path):
+        """
+        Parsea tablas de un documento .docx para extraer componentes, bloques y preguntas.
+        """
         doc = Document(path)
         tablas_cuestionario = []
         componente_actual = None
         dentro_tabla_cuestionario = False
         componentes_procesados = set()
-        bloque = False
-
-        # Inicializa un contador para las preguntas
+        bloque = None
         contador_preguntas = 0
 
         for tabla in doc.tables:
             for fila in tabla.rows:
                 celdas = [self._limpiar_texto(cell.text) if cell.text else "" for cell in fila.cells]
-                #Descomentar para debug---> print(f"Celdas: {celdas}")  # Impresión de depuración
 
-                if not any(celdas):
-                    #Descomentar para debug---> print("Fila vacía, continuando...")
+                if self._es_fila_vacia(celdas):
                     continue
-
-                if any("ASPECTOS A VERIFICAR" in c.upper() for c in celdas if c):
+                
+                if self._es_fila_encabezado_cuestionario(celdas):
                     dentro_tabla_cuestionario = True
-                    #Descomentar para debug---> print("Entrando a tabla de cuestionario")
                     continue
-
+                
                 if not dentro_tabla_cuestionario:
-                    #Descomentar para debug---> print("Fuera de tabla de cuestionario, continuando...")
                     continue
 
                 if celdas and "Elaborado y aprobado" in celdas[0]:
-                    #Descomentar para debug---> print("Tabla 'Elaborado y aprobado' encontrada, terminando...")
                     break
 
-                if len(celdas) >= 3 and len(set(c for c in celdas if c)) == 1:
+                if self._es_fila_de_componente(celdas) and self._limpiar_texto(celdas[0]) not in componentes_procesados:
                     componente_texto = self._limpiar_texto(celdas[0])
-                    if componente_texto and componente_texto not in componentes_procesados:
-                        componente_actual = {
-                            "componente_a_evaluar": componente_texto,
-                            "bloques": []
-                        }
-                        tablas_cuestionario.append(componente_actual)
-                        componentes_procesados.add(componente_texto)
-                        bloque = None
-                        #Descomentar para debug---> print(f"Componente detectado: {componente_texto}")
-                        continue
-
-                # Detectar encabezado
-                encabezado_detectado = False
-                for celda in celdas:
-                    if celda and re.search(r":\s*$", celda):
-                        encabezado_texto = self._limpiar_texto(celda)
-                        if componente_actual:
-                            bloque = {
-                                "encabezado": encabezado_texto,
-                                "preguntas": []
-                            }
-                            componente_actual["bloques"].append(bloque)
-                            #Descomentar para debug--> print(f"Encabezado detectado y añadido: {encabezado_texto}")
-                        encabezado_detectado = True
-                        break  # Solo un encabezado por fila
-
-                # Detectar preguntas si no hubo encabezado en la misma fila
-                if not encabezado_detectado and len(celdas) > 1:
-                    if re.match(r"^\d+\.?\s*.+", celdas[1]):
-                        numero_pregunta = int(re.search(r"^\d+", celdas[1]).group())
-                        texto_pregunta = re.sub(r"^\d+\.?\s*", "", celdas[1]).strip()
-                    else:
-                        numero_pregunta = None
-                        texto_pregunta = celdas[1].strip()
-
-                    if not bloque and componente_actual:
-                        bloque = {
-                            "encabezado": "",
-                            "preguntas": []
-                        }
+                    componente_actual = {"componente_a_evaluar": componente_texto, "bloques": []}
+                    tablas_cuestionario.append(componente_actual)
+                    componentes_procesados.add(componente_texto)
+                    bloque = None
+                    continue
+                
+                if componente_actual and self._es_fila_de_bloque(celdas):
+                    encabezado_texto = self._obtener_texto_encabezado(celdas)
+                    if encabezado_texto:
+                        bloque = {"encabezado": encabezado_texto, "preguntas": []}
                         componente_actual["bloques"].append(bloque)
-
-                    # Añadir la pregunta al bloque actual con un identificador único
-                    if componente_actual and bloque:
-                        contador_preguntas += 1
-                        bloque["preguntas"].append({
-                            "numero_pregunta": contador_preguntas,  # Identificador único
-                            "texto": texto_pregunta
-                        })
-                        #Descomentar para debug--> print(f"[Debug]:preguntas: {bloque}")
-
+                    continue
+                
+                if componente_actual and bloque:
+                    pregunta, contador_preguntas = self._obtener_pregunta(celdas, contador_preguntas)
+                    if pregunta:
+                        bloque["preguntas"].append(pregunta)
+                        
         return tablas_cuestionario
 
+    # Métodos auxiliares para la lógica de extracción
+    def _extraer_texto_de_archivo(self, file_path, mime):
+        """Extrae el texto completo de un archivo PDF o DOCX."""
+        full_text = ""
+        if mime == 'application/pdf' or file_path.lower().endswith('.pdf'):
+            with open(file_path, 'rb') as f:
+                reader = PyPDF2.PdfReader(f)
+                full_text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+        elif mime == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' or file_path.lower().endswith('.docx'):
+            doc = Document(file_path)
+            full_text = "\n".join(para.text for para in doc.paragraphs)
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
+                    if row_text:
+                        full_text += row_text + "\n"
+        else:
+            raise ValueError("Tipo de archivo no soportado para extracción automática.")
+        return full_text
+
+    def _extraer_componente(self, full_text):
+        """Extrae el componente del texto completo."""
+        comp_match = re.search(r'COMPONENTE\s+«?([A-ZÁÉÍÓÚÜÑ\s]+)»?', full_text, re.IGNORECASE)
+        return comp_match.group(1).strip() if comp_match else ""
+
+    def _extraer_y_limpiar_proposito(self, full_text):
+        """Extrae y limpia el propósito del texto completo."""
+        prop_match = re.search(r'Propósito:\s*([\s\S]*?)(?=Principales fuentes de información para el autocontrol|$)', full_text, re.IGNORECASE)
+        if prop_match:
+            proposito = prop_match.group(1).strip()
+            proposito = re.sub(r'(?<![.!?])\n(?!\n)', ' ', proposito)
+            proposito = re.sub(r'\s{2,}', ' ', proposito)
+            proposito = re.sub(r'\n\s*\n', '\n', proposito)
+            proposito = re.sub(r'(\s*\.\s*)+', '. ', proposito)
+            proposito = proposito.replace('•', '')
+            lineas = [l.strip() for l in proposito.split('\n') if l.strip() and not re.fullmatch(r'\d+', l.strip())]
+            buffer = ''
+            parrafos = []
+            for line in lineas:
+                line = re.sub(r'^[0-9]+[\s\.-·]*', '', line)
+                if re.match(r'^[A-ZÁÉÍÓÚÜÑ\s]+:$', line) or re.match(r'^(-|\*|•|·|[a-zA-Z]\))', line) or line.startswith(''):
+                    continue
+                else:
+                    if buffer:
+                        buffer += ' '
+                    buffer += line
+                    if line.endswith('.'):
+                        parrafos.append(buffer.strip())
+                        buffer = ''
+            if buffer:
+                parrafos.append(buffer.strip())
+            return " ".join(parrafos)
+        return ""
+
+    # Método principal refactorizado
     def extraer_contenido_archivo(self):
         """
         Extrae y procesa el contenido del archivo asociado (PDF/DOCX).
@@ -297,56 +351,18 @@ class GuiaAutocontrol(models.Model):
 
         file_path = self.archivo.archivo.path
         mime, _ = mimetypes.guess_type(file_path)
-        full_text = ""
-
+        
         try:
+            full_text = self._extraer_texto_de_archivo(file_path, mime)
+            tablas_cuestionario = []
+
             if mime == 'application/pdf' or file_path.lower().endswith('.pdf'):
-                with open(file_path, 'rb') as f:
-                    reader = PyPDF2.PdfReader(f)
-                    full_text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
                 tablas_cuestionario = self._parsear_tabla_pdf(file_path)
             elif mime == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' or file_path.lower().endswith('.docx'):
-                doc = Document(file_path)
-                full_text = "\n".join(para.text for para in doc.paragraphs)
-                for table in doc.tables:
-                    for row in table.rows:
-                        row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
-                        if row_text:
-                            full_text += row_text + "\n"
                 tablas_cuestionario = self._parsear_tabla_docx(file_path)
-            else:
-                raise ValueError("Tipo de archivo no soportado para extracción automática.")
 
-            comp_match = re.search(r'COMPONENTE\s+«?([A-ZÁÉÍÓÚÜÑ\s]+)»?', full_text, re.IGNORECASE)
-            self.componente = comp_match.group(1).strip() if comp_match else ""
-
-            prop_match = re.search(r'Propósito:\s*([\s\S]*?)(?=Principales fuentes de información para el autocontrol|$)', full_text, re.IGNORECASE)
-            if prop_match:
-                proposito = prop_match.group(1).strip()
-                proposito = re.sub(r'(?<![.!?])\n(?!\n)', ' ', proposito)
-                proposito = re.sub(r'\s{2,}', ' ', proposito)
-                proposito = re.sub(r'\n\s*\n', '\n', proposito)
-                proposito = re.sub(r'(\s*\.\s*)+', '. ', proposito)
-                proposito = proposito.replace('•', '')
-                lineas = [l.strip() for l in proposito.split('\n') if l.strip() and not re.fullmatch(r'\d+', l.strip())]
-                buffer = ''
-                parrafos = []
-                for line in lineas:
-                    line = re.sub(r'^[0-9]+[\s\.-·]*', '', line)
-                    if re.match(r'^[A-ZÁÉÍÓÚÜÑ\s]+:$', line):
-                        continue
-                    elif re.match(r'^(-|\*|•|·|[a-zA-Z]\))', line) or line.startswith(''):
-                        continue
-                    else:
-                        if buffer:
-                            buffer += ' '
-                        buffer += line
-                        if line.endswith('.'):
-                            parrafos.append(buffer.strip())
-                            buffer = ''
-                if buffer:
-                    parrafos.append(buffer.strip())
-                self.proposito = " ".join(parrafos)
+            self.componente = self._extraer_componente(full_text)
+            self.proposito = self._extraer_y_limpiar_proposito(full_text)
 
             self.contenido_procesado = {
                 "componente": self.componente,
